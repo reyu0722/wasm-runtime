@@ -1,4 +1,4 @@
-use anyhow::{ensure, Context as _, Result};
+use anyhow::{bail, ensure, Context as _, Result};
 
 trait ReadExt: std::io::Read {
     fn read_u8(&mut self) -> Result<u8> {
@@ -9,11 +9,13 @@ trait ReadExt: std::io::Read {
 
     fn read_unsigned_leb128(&mut self, n: u64) -> Result<u64> {
         let a = self.read_u8()?;
-        if a < 128 || a < (1 << 7) {
+        if a < 128 && (n >= 7 || a < (1 << n)) {
             Ok(a as u64)
-        } else {
+        } else if a >= 128 && n > 7 {
             let b = self.read_unsigned_leb128(n - 7)?;
             Ok(128 * b + (a as u64 - 128))
+        } else {
+            bail!("invalid leb128")
         }
     }
 }
@@ -60,6 +62,24 @@ mod tests {
     use super::*;
     use std::fs::File;
     use std::io::BufReader;
+
+    #[test]
+    fn test_read_leb128() {
+        fn lsb_from_buf_u8(buf: &[u8]) -> Result<u64> {
+            let mut reader = std::io::Cursor::new(buf);
+            reader.read_unsigned_leb128(8)
+        }
+
+        fn lsb_from_buf_u32(buf: &[u8]) -> Result<u64> {
+            let mut reader = std::io::Cursor::new(buf);
+            reader.read_unsigned_leb128(32)
+        }
+
+        assert_eq!(lsb_from_buf_u32(&[0x10]).unwrap(), 0x10);
+        assert_eq!(lsb_from_buf_u32(&[0x80, 0x02]).unwrap(), 0x100);
+        assert!(lsb_from_buf_u8(&[0x80]).is_err());
+        assert!(lsb_from_buf_u8(&[0x80, 0x02]).is_err());
+    }
 
     #[test]
     fn test() {
