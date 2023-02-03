@@ -49,10 +49,10 @@ pub fn decode_module(buf: &mut impl std::io::BufRead) -> Result<()> {
     ensure!(header[4..8] == [0x01, 0x00, 0x00, 0x00], "invalid version");
 
     loop {
-        decode_section(buf)?;
         if !buf.has_data_left()? {
             break;
         }
+        decode_section(buf)?;
     }
     Ok(())
 }
