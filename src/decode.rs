@@ -48,7 +48,7 @@ pub fn decode_module(buf: &mut impl std::io::BufRead) -> Result<()> {
 
     loop {
         decode_section(buf)?;
-        if buf.fill_buf()?.is_empty() {
+        if !buf.has_data_left()? {
             break;
         }
     }
