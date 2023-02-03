@@ -1,11 +1,13 @@
+use anyhow::{ensure, Context as _, Result};
+
 trait ReadExt: std::io::Read {
-    fn read_u8(&mut self) -> std::io::Result<u8> {
+    fn read_u8(&mut self) -> Result<u8> {
         let mut a = [0u8; 1];
         self.read_exact(&mut a)?;
         Ok(a[0])
     }
 
-    fn read_unsigned_leb128(&mut self, n: u64) -> std::io::Result<u64> {
+    fn read_unsigned_leb128(&mut self, n: u64) -> Result<u64> {
         let a = self.read_u8()?;
         if a < 128 || a < (1 << 7) {
             Ok(a as u64)
@@ -17,24 +19,32 @@ trait ReadExt: std::io::Read {
 }
 impl<R: std::io::Read + ?Sized> ReadExt for R {}
 
-fn decode_section(buf: &mut impl std::io::BufRead) -> Result<(), Box<dyn std::error::Error>> {
-    let idx = buf.read_unsigned_leb128(8)?;
-    let size = buf.read_unsigned_leb128(32)?;
+fn decode_section(buf: &mut impl std::io::BufRead) -> Result<()> {
+    let idx = buf
+        .read_unsigned_leb128(8)
+        .context("failed to read section index")?;
+    let size = buf
+        .read_unsigned_leb128(32)
+        .context("failed to read section size")?;
 
-    assert!(idx <= 12, "invalid section id: {}", idx);
+    ensure!(idx <= 12, "invalid section id: {}", idx);
 
     let mut cont = vec![0u8; size as usize];
-    buf.read_exact(cont.as_mut_slice())?;
+    buf.read_exact(cont.as_mut_slice())
+        .context("failed to read section content")?;
 
     Ok(())
 }
 
-pub fn decode_module(buf: &mut impl std::io::BufRead) -> Result<(), Box<dyn std::error::Error>> {
+pub fn decode_module(buf: &mut impl std::io::BufRead) -> Result<()> {
     let mut header = [0u8; 8];
     buf.read_exact(&mut header)?;
 
-    // magic number, version
-    assert_eq!(header, [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]);
+    ensure!(
+        header[0..4] == [0x00, 0x61, 0x73, 0x6d],
+        "invalid magic number"
+    );
+    ensure!(header[4..8] == [0x01, 0x00, 0x00, 0x00], "invalid version");
 
     loop {
         decode_section(buf)?;
