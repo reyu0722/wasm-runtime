@@ -55,6 +55,59 @@ fn decode_func_type(buf: &mut impl BufRead) -> Result<()> {
     Ok(())
 }
 
+fn decode_limits(buf: &mut impl BufRead) -> Result<()> {
+    let flag = buf.read_u8().context("failed to read limits flag")?;
+    match flag {
+        0x00 => {
+            buf.read_unsigned_leb128(32)
+                .context("failed to read limits min")?;
+        }
+        0x01 => {
+            buf.read_unsigned_leb128(32)
+                .context("failed to read limits min")?;
+            buf.read_unsigned_leb128(32)
+                .context("failed to read limits max")?;
+        }
+        _ => bail!("invalid limits flag: {}", flag),
+    }
+
+    Ok(())
+}
+
+fn decode_table_type(buf: &mut impl BufRead) -> Result<()> {
+    let reftype = buf.read_u8().context("failed to read reftype")?;
+    ensure!(
+        reftype == 0x70 || reftype == 0x6f,
+        "invalid reftype: {}",
+        reftype
+    );
+
+    decode_limits(buf)?;
+    Ok(())
+}
+
+fn decode_global_type(buf: &mut impl BufRead) -> Result<()> {
+    let valtype = buf.read_u8().context("failed to read valtype")?;
+    ensure!(
+        valtype == 0x7f || valtype == 0x7e || valtype == 0x7d || valtype == 0x7c,
+        "invalid valtype: {}",
+        valtype
+    );
+
+    let mutability = buf.read_u8().context("failed to read mutability")?;
+    ensure!(mutability <= 1, "invalid mutability: {}", mutability);
+
+    Ok(())
+}
+
+fn decode_name(buf: &mut impl BufRead) -> Result<()> {
+    let size = buf.read_unsigned_leb128(32).context("failed to read name size")?;
+    let mut cont = vec![0u8; size as usize];
+    buf.read_exact(cont.as_mut_slice())
+        .context("failed to read name content")?;
+    Ok(())
+}
+
 fn decode_type_section(buf: &mut impl BufRead) -> Result<()> {
     let size = buf
         .read_unsigned_leb128(32)
@@ -62,6 +115,38 @@ fn decode_type_section(buf: &mut impl BufRead) -> Result<()> {
 
     for _ in 0..size {
         decode_func_type(buf)?;
+    }
+
+    Ok(())
+}
+
+fn decode_import_section(buf: &mut impl BufRead) -> Result<()> {
+    let size = buf
+        .read_unsigned_leb128(32)
+        .context("failed to read import section size")?;
+
+    for _ in 0..size {
+        decode_name(buf)?; // module
+        decode_name(buf)?; // name
+
+        let desc = buf.read_u8().context("failed to read import desc")?;
+        match desc {
+            0x00 => {
+                buf.read_unsigned_leb128(32)
+                    .context("failed to read type id")?;
+            }
+            0x01 => {
+                decode_table_type(buf)?;
+            }
+            0x02 => {
+                decode_limits(buf)?;
+            }
+            0x03 => {
+                decode_global_type(buf)?;
+            }
+
+            _ => bail!("invalid import desc: {}", desc),
+        }
     }
 
     Ok(())
@@ -83,6 +168,7 @@ fn decode_section(buf: &mut impl BufRead) -> Result<()> {
 
     match idx {
         1 => decode_type_section(&mut std::io::Cursor::new(cont)),
+        2 => decode_import_section(&mut std::io::Cursor::new(cont)),
         _ => Ok(()),
     }
 }
