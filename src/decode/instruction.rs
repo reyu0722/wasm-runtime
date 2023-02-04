@@ -1,5 +1,5 @@
 use super::{types::ReadTypeExt, value::ReadValueExt};
-use anyhow::{bail, Result};
+use anyhow::{bail, Result, ensure};
 use std::io::BufRead;
 
 pub trait ReadInstructionExt: BufRead {
@@ -83,6 +83,39 @@ pub trait ReadInstructionExt: BufRead {
                 self.read_unsigned_leb128(32)?;
                 self.read_unsigned_leb128(32)?;
             }
+
+            // reference instructions
+            0xd0 => {
+                // ref.null
+                let ref_type = self.read_u8()?;
+                ensure!(ref_type == 0x70 || ref_type == 0x6f, "invalid ref.null type");
+            }
+            0xd1 => {
+                // ref.is_null
+            }
+            0xd2 => {
+                // ref.func
+                self.read_unsigned_leb128(32)?;
+            }
+
+            // parametric instructions
+            0x1a | 0x1b => {
+                // drop, select
+            }
+            0x1c => {
+                // select t*
+                let size = self.read_unsigned_leb128(32)?;
+                for _ in 0..size {
+                    self.read_value_type()?;
+                }
+            }
+
+            // variable instructions
+            0x20 | 0x21 | 0x22 | 0x23 | 0x24 => {
+                // local.get, local.set, local.tee, global.get, global.set
+                self.read_unsigned_leb128(32)?;
+            }
+
             _ => bail!("invalid opcode: {}", opcode),
         }
 
