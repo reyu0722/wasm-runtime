@@ -1,6 +1,7 @@
 use anyhow::{bail, ensure, Context as _, Result};
+use std::io::{BufRead, Read};
 
-trait ReadExt: std::io::Read {
+trait ReadExt: Read {
     fn read_u8(&mut self) -> Result<u8> {
         let mut a = [0u8; 1];
         self.read_exact(&mut a)?;
@@ -21,7 +22,52 @@ trait ReadExt: std::io::Read {
 }
 impl<R: std::io::Read + ?Sized> ReadExt for R {}
 
-fn decode_section(buf: &mut impl std::io::BufRead) -> Result<()> {
+fn decode_result_type(buf: &mut impl BufRead) -> Result<()> {
+    let size = buf
+        .read_unsigned_leb128(32)
+        .context("failed to read result type size")?;
+
+    for _ in 0..size {
+        let ty = buf.read_u8().context("failed to read result type")?;
+
+        match ty {
+            0x7f => (), // i32
+            0x7e => (), // i64
+            0x7d => (), // u32
+            0x7c => (), // u64
+            0x7b => (), // v128
+            0x70 => (), // funcref
+            0x6f => (), // externref
+            _ => bail!("invalid result type: {}", ty),
+        }
+    }
+
+    Ok(())
+}
+
+fn decode_func_type(buf: &mut impl BufRead) -> Result<()> {
+    let magic = buf.read_u8().context("failed to read magic number")?;
+    ensure!(magic == 0x60, "invalid magic number: {}", magic);
+
+    decode_result_type(buf)?;
+    decode_result_type(buf)?;
+
+    Ok(())
+}
+
+fn decode_type_section(buf: &mut impl BufRead) -> Result<()> {
+    let size = buf
+        .read_unsigned_leb128(32)
+        .context("failed to read type section size")?;
+
+    for _ in 0..size {
+        decode_func_type(buf)?;
+    }
+
+    Ok(())
+}
+
+fn decode_section(buf: &mut impl BufRead) -> Result<()> {
     let idx = buf
         .read_unsigned_leb128(8)
         .context("failed to read section index")?;
@@ -35,10 +81,13 @@ fn decode_section(buf: &mut impl std::io::BufRead) -> Result<()> {
     buf.read_exact(cont.as_mut_slice())
         .context("failed to read section content")?;
 
-    Ok(())
+    match idx {
+        1 => decode_type_section(&mut std::io::Cursor::new(cont)),
+        _ => Ok(()),
+    }
 }
 
-pub fn decode_module(buf: &mut impl std::io::BufRead) -> Result<()> {
+pub fn decode_module(buf: &mut impl BufRead) -> Result<()> {
     let mut header = [0u8; 8];
     buf.read_exact(&mut header)?;
 
@@ -61,17 +110,17 @@ pub fn decode_module(buf: &mut impl std::io::BufRead) -> Result<()> {
 mod tests {
     use super::*;
     use std::fs::File;
-    use std::io::BufReader;
+    use std::io::{BufReader, Cursor};
 
     #[test]
     fn test_read_leb128() {
         fn lsb_from_buf_u8(buf: &[u8]) -> Result<u64> {
-            let mut reader = std::io::Cursor::new(buf);
+            let mut reader = Cursor::new(buf);
             reader.read_unsigned_leb128(8)
         }
 
         fn lsb_from_buf_u32(buf: &[u8]) -> Result<u64> {
-            let mut reader = std::io::Cursor::new(buf);
+            let mut reader = Cursor::new(buf);
             reader.read_unsigned_leb128(32)
         }
 
