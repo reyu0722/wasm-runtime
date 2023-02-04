@@ -22,6 +22,7 @@ pub trait ReadSectionExt: Read {
         match idx {
             1 => cursor.read_type_section(),
             2 => cursor.read_import_section(),
+            3 => cursor.read_function_section(),
             _ => Ok(()),
         }
     }
@@ -65,6 +66,19 @@ pub trait ReadSectionExt: Read {
 
                 _ => bail!("invalid import desc: {}", desc),
             }
+        }
+
+        Ok(())
+    }
+
+    fn read_function_section(&mut self) -> Result<()> {
+        let size = self
+            .read_unsigned_leb128(32)
+            .context("failed to read function section size")?;
+
+        for _ in 0..size {
+            self.read_unsigned_leb128(32)
+                .context("failed to read type id")?;
         }
 
         Ok(())
