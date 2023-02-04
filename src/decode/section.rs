@@ -23,6 +23,8 @@ pub trait ReadSectionExt: Read {
             1 => cursor.read_type_section(),
             2 => cursor.read_import_section(),
             3 => cursor.read_function_section(),
+            4 => cursor.read_table_section(),
+            5 => cursor.read_memory_section(),
             _ => Ok(()),
         }
     }
@@ -63,7 +65,6 @@ pub trait ReadSectionExt: Read {
                 0x03 => {
                     self.read_global_type()?;
                 }
-
                 _ => bail!("invalid import desc: {}", desc),
             }
         }
@@ -79,6 +80,30 @@ pub trait ReadSectionExt: Read {
         for _ in 0..size {
             self.read_unsigned_leb128(32)
                 .context("failed to read type id")?;
+        }
+
+        Ok(())
+    }
+
+    fn read_table_section(&mut self) -> Result<()> {
+        let size = self
+            .read_unsigned_leb128(32)
+            .context("failed to read table section size")?;
+
+        for _ in 0..size {
+            self.read_table_type()?;
+        }
+
+        Ok(())
+    }
+
+    fn read_memory_section(&mut self) -> Result<()> {
+        let size = self
+            .read_unsigned_leb128(32)
+            .context("failed to read memory section size")?;
+
+        for _ in 0..size {
+            self.read_limits()?;
         }
 
         Ok(())
