@@ -244,3 +244,5 @@ pub trait ReadInstructionExt: BufRead {
         Ok(())
     }
 }
+
+impl<R: BufRead + ?Sized> ReadInstructionExt for R {}

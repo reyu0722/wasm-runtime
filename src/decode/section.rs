@@ -1,9 +1,10 @@
+use super::instruction::ReadInstructionExt;
 use super::types::ReadTypeExt;
 use super::value::ReadValueExt;
 use anyhow::{bail, ensure, Context as _, Result};
-use std::io::{Cursor, Read};
+use std::io::{BufRead, Cursor};
 
-pub trait ReadSectionExt: Read {
+pub trait ReadSectionExt: BufRead {
     fn read_section(&mut self) -> Result<()> {
         let idx = self
             .read_unsigned_leb128(8)
@@ -25,6 +26,7 @@ pub trait ReadSectionExt: Read {
             3 => cursor.read_function_section(),
             4 => cursor.read_table_section(),
             5 => cursor.read_memory_section(),
+            6 => cursor.read_global_section(),
             _ => Ok(()),
         }
     }
@@ -108,6 +110,19 @@ pub trait ReadSectionExt: Read {
 
         Ok(())
     }
+
+    fn read_global_section(&mut self) -> Result<()> {
+        let size = self
+            .read_unsigned_leb128(32)
+            .context("failed to read global section size")?;
+
+        for _ in 0..size {
+            self.read_global_type()?;
+            self.read_expr()?;
+        }
+
+        Ok(())
+    }
 }
 
-impl<R: Read + ?Sized> ReadSectionExt for R {}
+impl<R: BufRead + ?Sized> ReadSectionExt for R {}
