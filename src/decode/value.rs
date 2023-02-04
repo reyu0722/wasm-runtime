@@ -1,7 +1,7 @@
 use anyhow::{bail, Context as _, Result};
 use std::io::Read;
 
-pub trait ReadExt: Read {
+pub trait ReadValueExt: Read {
     fn read_u8(&mut self) -> Result<u8> {
         let mut a = [0u8; 1];
         self.read_exact(&mut a)?;
@@ -30,4 +30,29 @@ pub trait ReadExt: Read {
         Ok(())
     }
 }
-impl<R: std::io::Read + ?Sized> ReadExt for R {}
+
+impl<R: Read + ?Sized> ReadValueExt for R {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    #[test]
+    fn test_read_leb128() {
+        fn lsb_from_buf_u8(buf: &[u8]) -> Result<u64> {
+            let mut reader = Cursor::new(buf);
+            reader.read_unsigned_leb128(8)
+        }
+
+        fn lsb_from_buf_u32(buf: &[u8]) -> Result<u64> {
+            let mut reader = Cursor::new(buf);
+            reader.read_unsigned_leb128(32)
+        }
+
+        assert_eq!(lsb_from_buf_u32(&[0x10]).unwrap(), 0x10);
+        assert_eq!(lsb_from_buf_u32(&[0x80, 0x02]).unwrap(), 0x100);
+        assert!(lsb_from_buf_u8(&[0x80]).is_err());
+        assert!(lsb_from_buf_u8(&[0x80, 0x02]).is_err());
+    }
+}

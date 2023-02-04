@@ -3,8 +3,8 @@ use std::io::{BufRead, Read};
 
 mod types;
 mod value;
-use types::*;
-use value::ReadExt;
+use types::ReadTypeExt;
+use value::ReadValueExt;
 
 fn decode_type_section(buf: &mut impl Read) -> Result<()> {
     let size = buf
@@ -12,7 +12,7 @@ fn decode_type_section(buf: &mut impl Read) -> Result<()> {
         .context("failed to read type section size")?;
 
     for _ in 0..size {
-        decode_func_type(buf)?;
+        buf.read_func_type()?;
     }
 
     Ok(())
@@ -34,13 +34,13 @@ fn decode_import_section(buf: &mut impl Read) -> Result<()> {
                     .context("failed to read type id")?;
             }
             0x01 => {
-                decode_table_type(buf)?;
+                buf.read_table_type()?;
             }
             0x02 => {
-                decode_limits(buf)?;
+                buf.read_limits()?;
             }
             0x03 => {
-                decode_global_type(buf)?;
+                buf.read_global_type()?;
             }
 
             _ => bail!("invalid import desc: {}", desc),
@@ -94,25 +94,7 @@ pub fn decode_module(buf: &mut impl BufRead) -> Result<()> {
 mod tests {
     use super::*;
     use std::fs::File;
-    use std::io::{BufReader, Cursor};
-
-    #[test]
-    fn test_read_leb128() {
-        fn lsb_from_buf_u8(buf: &[u8]) -> Result<u64> {
-            let mut reader = Cursor::new(buf);
-            reader.read_unsigned_leb128(8)
-        }
-
-        fn lsb_from_buf_u32(buf: &[u8]) -> Result<u64> {
-            let mut reader = Cursor::new(buf);
-            reader.read_unsigned_leb128(32)
-        }
-
-        assert_eq!(lsb_from_buf_u32(&[0x10]).unwrap(), 0x10);
-        assert_eq!(lsb_from_buf_u32(&[0x80, 0x02]).unwrap(), 0x100);
-        assert!(lsb_from_buf_u8(&[0x80]).is_err());
-        assert!(lsb_from_buf_u8(&[0x80, 0x02]).is_err());
-    }
+    use std::io::BufReader;
 
     #[test]
     fn test() {
