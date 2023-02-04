@@ -1,5 +1,5 @@
 use super::{types::ReadTypeExt, value::ReadValueExt};
-use anyhow::{bail, Result, ensure};
+use anyhow::{bail, ensure, Result};
 use std::io::BufRead;
 
 pub trait ReadInstructionExt: BufRead {
@@ -88,7 +88,10 @@ pub trait ReadInstructionExt: BufRead {
             0xd0 => {
                 // ref.null
                 let ref_type = self.read_u8()?;
-                ensure!(ref_type == 0x70 || ref_type == 0x6f, "invalid ref.null type");
+                ensure!(
+                    ref_type == 0x70 || ref_type == 0x6f,
+                    "invalid ref.null type"
+                );
             }
             0xd1 => {
                 // ref.is_null
@@ -114,6 +117,25 @@ pub trait ReadInstructionExt: BufRead {
             0x20 | 0x21 | 0x22 | 0x23 | 0x24 => {
                 // local.get, local.set, local.tee, global.get, global.set
                 self.read_unsigned_leb128(32)?;
+            }
+
+            // table instructions
+            0x25 | 0x26 => {
+                // table.get, table.set
+                self.read_unsigned_leb128(32)?;
+            }
+            0xfc => {
+                let kind = self.read_unsigned_leb128(32)?;
+                match kind {
+                    0x12 | 0x14 => {
+                        self.read_unsigned_leb128(32)?;
+                        self.read_unsigned_leb128(32)?;
+                    }
+                    0x13 | 0x15 | 0x16 | 0x17 => {
+                        self.read_unsigned_leb128(32)?;
+                    }
+                    _ => bail!("invalid table instruction: {}", kind),
+                }
             }
 
             _ => bail!("invalid opcode: {}", opcode),
