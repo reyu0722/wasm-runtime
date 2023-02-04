@@ -27,6 +27,7 @@ pub trait ReadSectionExt: BufRead {
             4 => cursor.read_table_section(),
             5 => cursor.read_memory_section(),
             6 => cursor.read_global_section(),
+            7 => cursor.read_export_section(),
             _ => Ok(()),
         }
     }
@@ -119,6 +120,23 @@ pub trait ReadSectionExt: BufRead {
         for _ in 0..size {
             self.read_global_type()?;
             self.read_expr()?;
+        }
+
+        Ok(())
+    }
+
+    fn read_export_section(&mut self) -> Result<()> {
+        let size = self
+            .read_unsigned_leb128(32)
+            .context("failed to read export section size")?;
+
+        for _ in 0..size {
+            self.read_name()?;
+            let ty = self.read_u8().context("failed to read export type")?;
+            ensure!(ty <= 0x03, "invalid export type: {}", ty);
+
+            self.read_unsigned_leb128(32)
+                .context("failed to read export id")?;
         }
 
         Ok(())
