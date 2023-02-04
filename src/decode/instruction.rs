@@ -1,5 +1,5 @@
 use super::{types::ReadTypeExt, value::ReadValueExt};
-use anyhow::{bail, ensure, Result};
+use anyhow::{bail, ensure, Context as _, Result};
 use std::io::BufRead;
 
 pub trait ReadInstructionExt: BufRead {
@@ -9,7 +9,7 @@ pub trait ReadInstructionExt: BufRead {
                 self.consume(1);
                 break;
             }
-            self.read_instr()?;
+            self.read_instr().context("failed to read instruction")?;
         }
 
         Ok(())
@@ -30,7 +30,7 @@ pub trait ReadInstructionExt: BufRead {
     }
 
     fn read_instr(&mut self) -> Result<()> {
-        let opcode = self.read_u8()?;
+        let opcode = self.read_u8().context("failed to read opcode")?;
         match opcode {
             // control instructions
             0x00 => (), // unreachable
