@@ -4,6 +4,14 @@ use std::io::BufRead;
 
 pub trait ReadInstructionExt: BufRead {
     fn read_expr(&mut self) -> Result<()> {
+        loop {
+            if self.fill_buf()?[0] == 0x0b {
+                self.consume(1);
+                break;
+            }
+            self.read_instr()?;
+        }
+
         Ok(())
     }
 
@@ -197,6 +205,36 @@ pub trait ReadInstructionExt: BufRead {
                         self.read_unsigned_leb128(32)?;
                     }
                     _ => bail!("invalid table instruction: {}", kind),
+                }
+            }
+
+            // vector instructions
+            0xfd => {
+                let kind = self.read_unsigned_leb128(32)?;
+                match kind {
+                    kind if kind <= 11 || kind == 92 || kind == 93 => {
+                        self.read_unsigned_leb128(32)?;
+                        self.read_unsigned_leb128(32)?;
+                    }
+                    kind if 84 <= kind || kind <= 91 => {
+                        self.read_unsigned_leb128(32)?;
+                        self.read_unsigned_leb128(32)?;
+                        self.read_unsigned_leb128(32)?;
+                    }
+                    12 => {
+                        for _ in 0..16 {
+                            self.read_u8()?;
+                        }
+                    }
+                    13 => {
+                        for _ in 0..16 {
+                            self.read_unsigned_leb128(32)?;
+                        }
+                    }
+                    kind if 21 <= kind && kind <= 34 => {
+                        self.read_unsigned_leb128(32)?;
+                    }
+                    _ => {}
                 }
             }
 
