@@ -1,114 +1,12 @@
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::{BufRead, Read};
 
-trait ReadExt: Read {
-    fn read_u8(&mut self) -> Result<u8> {
-        let mut a = [0u8; 1];
-        self.read_exact(&mut a)?;
-        Ok(a[0])
-    }
+mod types;
+mod value;
+use types::*;
+use value::ReadExt;
 
-    fn read_unsigned_leb128(&mut self, n: u64) -> Result<u64> {
-        let a = self.read_u8()?;
-        if a < 128 && (n >= 7 || a < (1 << n)) {
-            Ok(a as u64)
-        } else if a >= 128 && n > 7 {
-            let b = self.read_unsigned_leb128(n - 7)?;
-            Ok(128 * b + (a as u64 - 128))
-        } else {
-            bail!("invalid leb128")
-        }
-    }
-}
-impl<R: std::io::Read + ?Sized> ReadExt for R {}
-
-fn decode_result_type(buf: &mut impl BufRead) -> Result<()> {
-    let size = buf
-        .read_unsigned_leb128(32)
-        .context("failed to read result type size")?;
-
-    for _ in 0..size {
-        let ty = buf.read_u8().context("failed to read result type")?;
-
-        match ty {
-            0x7f => (), // i32
-            0x7e => (), // i64
-            0x7d => (), // u32
-            0x7c => (), // u64
-            0x7b => (), // v128
-            0x70 => (), // funcref
-            0x6f => (), // externref
-            _ => bail!("invalid result type: {}", ty),
-        }
-    }
-
-    Ok(())
-}
-
-fn decode_func_type(buf: &mut impl BufRead) -> Result<()> {
-    let magic = buf.read_u8().context("failed to read magic number")?;
-    ensure!(magic == 0x60, "invalid magic number: {}", magic);
-
-    decode_result_type(buf)?;
-    decode_result_type(buf)?;
-
-    Ok(())
-}
-
-fn decode_limits(buf: &mut impl BufRead) -> Result<()> {
-    let flag = buf.read_u8().context("failed to read limits flag")?;
-    match flag {
-        0x00 => {
-            buf.read_unsigned_leb128(32)
-                .context("failed to read limits min")?;
-        }
-        0x01 => {
-            buf.read_unsigned_leb128(32)
-                .context("failed to read limits min")?;
-            buf.read_unsigned_leb128(32)
-                .context("failed to read limits max")?;
-        }
-        _ => bail!("invalid limits flag: {}", flag),
-    }
-
-    Ok(())
-}
-
-fn decode_table_type(buf: &mut impl BufRead) -> Result<()> {
-    let reftype = buf.read_u8().context("failed to read reftype")?;
-    ensure!(
-        reftype == 0x70 || reftype == 0x6f,
-        "invalid reftype: {}",
-        reftype
-    );
-
-    decode_limits(buf)?;
-    Ok(())
-}
-
-fn decode_global_type(buf: &mut impl BufRead) -> Result<()> {
-    let valtype = buf.read_u8().context("failed to read valtype")?;
-    ensure!(
-        valtype == 0x7f || valtype == 0x7e || valtype == 0x7d || valtype == 0x7c,
-        "invalid valtype: {}",
-        valtype
-    );
-
-    let mutability = buf.read_u8().context("failed to read mutability")?;
-    ensure!(mutability <= 1, "invalid mutability: {}", mutability);
-
-    Ok(())
-}
-
-fn decode_name(buf: &mut impl BufRead) -> Result<()> {
-    let size = buf.read_unsigned_leb128(32).context("failed to read name size")?;
-    let mut cont = vec![0u8; size as usize];
-    buf.read_exact(cont.as_mut_slice())
-        .context("failed to read name content")?;
-    Ok(())
-}
-
-fn decode_type_section(buf: &mut impl BufRead) -> Result<()> {
+fn decode_type_section(buf: &mut impl Read) -> Result<()> {
     let size = buf
         .read_unsigned_leb128(32)
         .context("failed to read type section size")?;
@@ -120,14 +18,14 @@ fn decode_type_section(buf: &mut impl BufRead) -> Result<()> {
     Ok(())
 }
 
-fn decode_import_section(buf: &mut impl BufRead) -> Result<()> {
+fn decode_import_section(buf: &mut impl Read) -> Result<()> {
     let size = buf
         .read_unsigned_leb128(32)
         .context("failed to read import section size")?;
 
     for _ in 0..size {
-        decode_name(buf)?; // module
-        decode_name(buf)?; // name
+        buf.read_name()?; // module
+        buf.read_name()?; // name
 
         let desc = buf.read_u8().context("failed to read import desc")?;
         match desc {
@@ -152,7 +50,7 @@ fn decode_import_section(buf: &mut impl BufRead) -> Result<()> {
     Ok(())
 }
 
-fn decode_section(buf: &mut impl BufRead) -> Result<()> {
+fn decode_section(buf: &mut impl Read) -> Result<()> {
     let idx = buf
         .read_unsigned_leb128(8)
         .context("failed to read section index")?;
