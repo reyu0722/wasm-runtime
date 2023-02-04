@@ -131,9 +131,35 @@ pub trait ReadInstructionExt: BufRead {
                 self.read_unsigned_leb128(32)?;
             }
 
+            // numeric instructions
+            0x41 => {
+                // i32.const
+                self.read_signed_leb128(32)?;
+            }
+            0x42 => {
+                // i64.const
+                self.read_signed_leb128(64)?;
+            }
+            0x43 => {
+                // f32.const
+                for _ in 0..4 {
+                    self.read_u8()?;
+                }
+            }
+            0x44 => {
+                // f64.const
+                for _ in 0..8 {
+                    self.read_u8()?;
+                }
+            }
+            idx if 0x45 <= idx && idx <= 0xc4 => {}
+
             0xfc => {
                 let kind = self.read_unsigned_leb128(32)?;
                 match kind {
+                    // numeric instructions
+                    kind if kind <= 0x07 => {}
+
                     // memory instructions
                     0x08 => {
                         self.read_unsigned_leb128(32)?;
