@@ -124,9 +124,45 @@ pub trait ReadInstructionExt: BufRead {
                 // table.get, table.set
                 self.read_unsigned_leb128(32)?;
             }
+
+            // memory instructions
+            idx if 0x28 <= idx && idx <= 0x40 => {
+                self.read_unsigned_leb128(32)?;
+                self.read_unsigned_leb128(32)?;
+            }
+
             0xfc => {
                 let kind = self.read_unsigned_leb128(32)?;
                 match kind {
+                    // memory instructions
+                    0x08 => {
+                        self.read_unsigned_leb128(32)?;
+                        ensure!(
+                            self.read_unsigned_leb128(32)? == 0,
+                            "invalid memory instruction"
+                        )
+                    }
+                    0x09 => {
+                        self.read_unsigned_leb128(32)?;
+                    }
+                    0x10 => {
+                        ensure!(
+                            self.read_unsigned_leb128(32)? == 0,
+                            "invalid memory instruction"
+                        );
+                        ensure!(
+                            self.read_unsigned_leb128(32)? == 0,
+                            "invalid memory instruction"
+                        );
+                    }
+                    0x11 => {
+                        ensure!(
+                            self.read_unsigned_leb128(32)? == 0,
+                            "invalid memory instruction"
+                        );
+                    }
+
+                    // table instructions
                     0x12 | 0x14 => {
                         self.read_unsigned_leb128(32)?;
                         self.read_unsigned_leb128(32)?;
