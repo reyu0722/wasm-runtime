@@ -3,24 +3,30 @@ use anyhow::{bail, ensure, Context as _, Result};
 use std::io::Read;
 
 pub trait ReadTypeExt: Read {
+    fn read_value_type(&mut self) -> Result<()> {
+        let ty = self.read_u8().context("failed to read value type")?;
+
+        match ty {
+            0x7f => (), // i32
+            0x7e => (), // i64
+            0x7d => (), // u32
+            0x7c => (), // u64
+            0x7b => (), // v128
+            0x70 => (), // funcref
+            0x6f => (), // externref
+            _ => bail!("invalid value type: {}", ty),
+        }
+
+        Ok(())
+    }
+
     fn read_result_type(&mut self) -> Result<()> {
         let size = self
             .read_unsigned_leb128(32)
             .context("failed to read result type size")?;
 
         for _ in 0..size {
-            let ty = self.read_u8().context("failed to read result type")?;
-
-            match ty {
-                0x7f => (), // i32
-                0x7e => (), // i64
-                0x7d => (), // u32
-                0x7c => (), // u64
-                0x7b => (), // v128
-                0x70 => (), // funcref
-                0x6f => (), // externref
-                _ => bail!("invalid result type: {}", ty),
-            }
+            self.read_value_type()?;
         }
 
         Ok(())

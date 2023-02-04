@@ -16,7 +16,21 @@ pub trait ReadValueExt: Read {
             let b = self.read_unsigned_leb128(n - 7)?;
             Ok(128 * b + (a as u64 - 128))
         } else {
-            bail!("invalid leb128")
+            bail!("invalid unsigned leb128")
+        }
+    }
+
+    fn read_signed_leb128(&mut self, n: u64) -> Result<i64> {
+        let a = self.read_u8()?;
+        if a < 64 && (n >= 7 || a < (1 << (n - 1))) {
+            Ok(a as i64)
+        } else if a >= 64 && a < 128 && (n >= 8 || a > (128 - (1 << (n - 1)))) {
+            Ok((a - 128) as i64)
+        } else if a > 128 && n > 7 {
+            let b = self.read_signed_leb128(n - 7)?;
+            Ok(128 * b + (a as i64 - 128))
+        } else {
+            bail!("invalid signed leb128")
         }
     }
 
