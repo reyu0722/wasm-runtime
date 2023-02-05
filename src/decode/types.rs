@@ -21,9 +21,7 @@ pub trait ReadTypeExt: BufRead {
     }
 
     fn read_result_type(&mut self) -> Result<()> {
-        let size = self
-            .read_unsigned_leb128(32)
-            .context("failed to read result type size")?;
+        let size = self.read_u32().context("failed to read result type size")?;
 
         for _ in 0..size {
             self.read_value_type()?;
@@ -46,14 +44,11 @@ pub trait ReadTypeExt: BufRead {
         let flag = self.read_byte().context("failed to read limits flag")?;
         match flag {
             0x00 => {
-                self.read_unsigned_leb128(32)
-                    .context("failed to read limits min")?;
+                self.read_u32().context("failed to read limits min")?;
             }
             0x01 => {
-                self.read_unsigned_leb128(32)
-                    .context("failed to read limits min")?;
-                self.read_unsigned_leb128(32)
-                    .context("failed to read limits max")?;
+                self.read_u32().context("failed to read limits min")?;
+                self.read_u32().context("failed to read limits max")?;
             }
             _ => bail!("invalid limits flag: {}", flag),
         }

@@ -10,9 +10,7 @@ pub trait ReadSectionExt: BufRead {
         let idx = self
             .read_unsigned_leb128(8)
             .context("failed to read section index")?;
-        let size = self
-            .read_unsigned_leb128(32)
-            .context("failed to read section size")?;
+        let size = self.read_u32().context("failed to read section size")?;
 
         ensure!(idx <= 12, "invalid section id: {}", idx);
 
@@ -39,7 +37,7 @@ pub trait ReadSectionExt: BufRead {
 
     fn read_type_section(&mut self) -> Result<()> {
         let size = self
-            .read_unsigned_leb128(32)
+            .read_u32()
             .context("failed to read type section size")?;
 
         for _ in 0..size {
@@ -51,7 +49,7 @@ pub trait ReadSectionExt: BufRead {
 
     fn read_import_section(&mut self) -> Result<()> {
         let size = self
-            .read_unsigned_leb128(32)
+            .read_u32()
             .context("failed to read import section size")?;
 
         for _ in 0..size {
@@ -61,8 +59,7 @@ pub trait ReadSectionExt: BufRead {
             let desc = self.read_byte().context("failed to read import desc")?;
             match desc {
                 0x00 => {
-                    self.read_unsigned_leb128(32)
-                        .context("failed to read type id")?;
+                    self.read_u32().context("failed to read type id")?;
                 }
                 0x01 => {
                     self.read_table_type()?;
@@ -82,12 +79,11 @@ pub trait ReadSectionExt: BufRead {
 
     fn read_function_section(&mut self) -> Result<()> {
         let size = self
-            .read_unsigned_leb128(32)
+            .read_u32()
             .context("failed to read function section size")?;
 
         for _ in 0..size {
-            self.read_unsigned_leb128(32)
-                .context("failed to read type id")?;
+            self.read_u32().context("failed to read type id")?;
         }
 
         Ok(())
@@ -95,7 +91,7 @@ pub trait ReadSectionExt: BufRead {
 
     fn read_table_section(&mut self) -> Result<()> {
         let size = self
-            .read_unsigned_leb128(32)
+            .read_u32()
             .context("failed to read table section size")?;
 
         for _ in 0..size {
@@ -107,7 +103,7 @@ pub trait ReadSectionExt: BufRead {
 
     fn read_memory_section(&mut self) -> Result<()> {
         let size = self
-            .read_unsigned_leb128(32)
+            .read_u32()
             .context("failed to read memory section size")?;
 
         for _ in 0..size {
@@ -119,7 +115,7 @@ pub trait ReadSectionExt: BufRead {
 
     fn read_global_section(&mut self) -> Result<()> {
         let size = self
-            .read_unsigned_leb128(32)
+            .read_u32()
             .context("failed to read global section size")?;
 
         for _ in 0..size {
@@ -132,7 +128,7 @@ pub trait ReadSectionExt: BufRead {
 
     fn read_export_section(&mut self) -> Result<()> {
         let size = self
-            .read_unsigned_leb128(32)
+            .read_u32()
             .context("failed to read export section size")?;
 
         for _ in 0..size {
@@ -140,15 +136,14 @@ pub trait ReadSectionExt: BufRead {
             let ty = self.read_byte().context("failed to read export type")?;
             ensure!(ty <= 0x03, "invalid export type: {}", ty);
 
-            self.read_unsigned_leb128(32)
-                .context("failed to read export id")?;
+            self.read_u32().context("failed to read export id")?;
         }
 
         Ok(())
     }
 
     fn read_start_section(&mut self) -> Result<()> {
-        self.read_unsigned_leb128(32)
+        self.read_u32()
             .context("failed to read start section func id")?;
 
         Ok(())
@@ -156,46 +151,46 @@ pub trait ReadSectionExt: BufRead {
 
     fn read_element_section(&mut self) -> Result<()> {
         let size = self
-            .read_unsigned_leb128(32)
+            .read_u32()
             .context("failed to read element section size")?;
 
         for _ in 0..size {
-            let ty = self.read_unsigned_leb128(32)?;
+            let ty = self.read_u32()?;
 
             match ty {
                 0 => {
                     self.read_expr()?;
-                    let size = self.read_unsigned_leb128(32)?;
+                    let size = self.read_u32()?;
                     for _ in 0..size {
-                        self.read_unsigned_leb128(32)?;
+                        self.read_u32()?;
                     }
                 }
                 1 => {
                     ensure!(self.read_byte()? == 0x00, "invalid element section type");
-                    let size = self.read_unsigned_leb128(32)?;
+                    let size = self.read_u32()?;
                     for _ in 0..size {
-                        self.read_unsigned_leb128(32)?;
+                        self.read_u32()?;
                     }
                 }
                 2 => {
-                    self.read_unsigned_leb128(32)?;
+                    self.read_u32()?;
                     self.read_expr()?;
                     ensure!(self.read_byte()? == 0x00, "invalid element section type");
-                    let size = self.read_unsigned_leb128(32)?;
+                    let size = self.read_u32()?;
                     for _ in 0..size {
-                        self.read_unsigned_leb128(32)?;
+                        self.read_u32()?;
                     }
                 }
                 3 => {
                     ensure!(self.read_byte()? == 0x00, "invalid element section type");
-                    let size = self.read_unsigned_leb128(32)?;
+                    let size = self.read_u32()?;
                     for _ in 0..size {
-                        self.read_unsigned_leb128(32)?;
+                        self.read_u32()?;
                     }
                 }
                 4 => {
                     self.read_expr()?;
-                    let size = self.read_unsigned_leb128(32)?;
+                    let size = self.read_u32()?;
                     for _ in 0..size {
                         self.read_expr()?;
                     }
@@ -206,20 +201,20 @@ pub trait ReadSectionExt: BufRead {
                         ref_type == 0x70 || ref_type == 0x6f,
                         "invalid element section type"
                     );
-                    let size = self.read_unsigned_leb128(32)?;
+                    let size = self.read_u32()?;
                     for _ in 0..size {
                         self.read_expr()?;
                     }
                 }
                 6 => {
-                    self.read_unsigned_leb128(32)?;
+                    self.read_u32()?;
                     self.read_expr()?;
                     let ref_type = self.read_byte()?;
                     ensure!(
                         ref_type == 0x70 || ref_type == 0x6f,
                         "invalid element section type"
                     );
-                    let size = self.read_unsigned_leb128(32)?;
+                    let size = self.read_u32()?;
                     for _ in 0..size {
                         self.read_expr()?;
                     }
@@ -230,7 +225,7 @@ pub trait ReadSectionExt: BufRead {
                         ref_type == 0x70 || ref_type == 0x6f,
                         "invalid element section type"
                     );
-                    let size = self.read_unsigned_leb128(32)?;
+                    let size = self.read_u32()?;
                     for _ in 0..size {
                         self.read_expr()?;
                     }
@@ -244,19 +239,19 @@ pub trait ReadSectionExt: BufRead {
 
     fn read_code_section(&mut self) -> Result<()> {
         let size = self
-            .read_unsigned_leb128(32)
+            .read_u32()
             .context("failed to read code section size")?;
 
         for _ in 0..size {
             // TODO: check size
-            self.read_unsigned_leb128(32)
+            self.read_u32()
                 .context("failed to read code section body size")?;
 
             let size = self
-                .read_unsigned_leb128(32)
+                .read_u32()
                 .context("failed to read code section vec size")?;
             for _ in 0..size {
-                self.read_unsigned_leb128(32)?;
+                self.read_u32()?;
                 self.read_value_type()?;
             }
 
@@ -267,7 +262,7 @@ pub trait ReadSectionExt: BufRead {
     }
 
     fn read_data_count_section(&mut self) -> Result<()> {
-        self.read_unsigned_leb128(32)
+        self.read_u32()
             .context("failed to read data count section size")?;
 
         Ok(())

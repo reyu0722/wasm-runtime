@@ -158,30 +158,21 @@ pub trait ReadInstructionExt: BufRead {
 
                     // memory instructions
                     0x08 => {
-                        self.read_u32()?;
-                        ensure!(
-                            self.read_u32()? == 0,
-                            "invalid memory instruction"
-                        )
+                        self.read_and_ensure(0x00)
+                            .context("invalid memory instruction")?;
                     }
                     0x09 => {
                         self.read_u32()?;
                     }
                     0x10 => {
-                        ensure!(
-                            self.read_u32()? == 0,
-                            "invalid memory instruction"
-                        );
-                        ensure!(
-                            self.read_u32()? == 0,
-                            "invalid memory instruction"
-                        );
+                        self.read_and_ensure(0x00)
+                            .context("invalid memory instruction")?;
+                        self.read_and_ensure(0x00)
+                            .context("invalid memory instruction")?;
                     }
                     0x11 => {
-                        ensure!(
-                            self.read_u32()? == 0,
-                            "invalid memory instruction"
-                        );
+                        self.read_and_ensure(0x00)
+                            .context("invalid memory instruction")?;
                     }
 
                     // table instructions

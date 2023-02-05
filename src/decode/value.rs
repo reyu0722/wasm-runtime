@@ -37,9 +37,7 @@ pub trait ReadValueExt: BufRead {
     }
 
     fn read_name(&mut self) -> Result<()> {
-        let size = self
-            .read_unsigned_leb128(32)
-            .context("failed to read name size")?;
+        let size = self.read_u32().context("failed to read name size")?;
         let mut cont = vec![0u8; size as usize];
         self.read_exact(cont.as_mut_slice())
             .context("failed to read name content")?;
