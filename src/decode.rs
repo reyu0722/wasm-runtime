@@ -1,3 +1,4 @@
+use self::prelude::*;
 use anyhow::{ensure, Result};
 use std::io::BufRead;
 
@@ -7,9 +8,8 @@ mod section;
 mod types;
 mod util;
 mod value;
-use prelude::*;
 
-pub fn decode_module(buf: &mut impl BufRead) -> Result<()> {
+pub fn decode(buf: &mut impl BufRead) -> Result<()> {
     let mut header = [0u8; 8];
     buf.read_exact(&mut header)?;
 
@@ -35,6 +35,6 @@ mod tests {
     fn test() {
         let f = File::open("test/add.wasm").unwrap();
         let mut buf = BufReader::new(f);
-        decode_module(&mut buf).unwrap();
+        decode(&mut buf).unwrap();
     }
 }
