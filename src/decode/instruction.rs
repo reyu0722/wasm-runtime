@@ -20,7 +20,7 @@ pub trait ReadInstructionExt: BufRead {
         if let Ok(()) = block_type.read_value_type() {
             self.consume(1);
             Ok(())
-        } else if block_type[0] == 0x40 {
+        } else if self.fill_buf()?[0] == 0x40 {
             self.consume(1);
             Ok(()) // empty
         } else {
@@ -134,8 +134,12 @@ pub trait ReadInstructionExt: BufRead {
             }
 
             // memory instructions
-            idx if 0x28 <= idx && idx <= 0x40 => {
+            idx if 0x28 <= idx && idx <= 0x3e => {
                 self.read_unsigned_leb128(32)?;
+                self.read_unsigned_leb128(32)?;
+            }
+            0x3f | 0x40 => {
+                // memory.size, memory.grow
                 self.read_unsigned_leb128(32)?;
             }
 
