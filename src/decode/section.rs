@@ -30,6 +30,7 @@ pub trait ReadSectionExt: BufRead {
             7 => cursor.read_export_section(),
             8 => cursor.read_start_section(),
             9 => cursor.read_element_section(),
+            10 => cursor.read_code_section(),
             _ => Ok(()),
         }
     }
@@ -234,6 +235,30 @@ pub trait ReadSectionExt: BufRead {
                 }
                 _ => bail!("invalid element section type: {}", ty),
             }
+        }
+
+        Ok(())
+    }
+
+    fn read_code_section(&mut self) -> Result<()> {
+        let size = self
+            .read_unsigned_leb128(32)
+            .context("failed to read code section size")?;
+
+        for _ in 0..size {
+            // TODO: check size
+            self.read_unsigned_leb128(32)
+                .context("failed to read code section body size")?;
+
+            let size = self
+                .read_unsigned_leb128(32)
+                .context("failed to read code section vec size")?;
+            for _ in 0..size {
+                self.read_unsigned_leb128(32)?;
+                self.read_value_type()?;
+            }
+
+            self.read_expr()?;
         }
 
         Ok(())
