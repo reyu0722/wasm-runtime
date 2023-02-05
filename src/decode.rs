@@ -4,6 +4,7 @@ use std::io::BufRead;
 mod instruction;
 mod section;
 mod types;
+mod util;
 mod value;
 use section::ReadSectionExt;
 

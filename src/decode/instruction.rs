@@ -1,12 +1,11 @@
-use super::{types::ReadTypeExt, value::ReadValueExt};
+use super::{types::ReadTypeExt, util::ReadUtilExt, value::ReadValueExt};
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::BufRead;
 
 pub trait ReadInstructionExt: BufRead {
     fn read_expr(&mut self) -> Result<()> {
         loop {
-            if self.fill_buf()?[0] == 0x0b {
-                self.consume(1);
+            if self.read_if_equal(0x0b)? {
                 break;
             }
             self.read_instr().context("failed to read instruction")?;
@@ -16,12 +15,12 @@ pub trait ReadInstructionExt: BufRead {
     }
 
     fn read_block_type(&mut self) -> Result<()> {
-        let mut block_type = &self.fill_buf()?[0..1];
-        if let Ok(()) = block_type.read_value_type() {
+        // TODO: fix
+        let mut slice = &self.fill_buf()?[0..1];
+        if let Ok(()) = slice.read_value_type() {
             self.consume(1);
             Ok(())
-        } else if self.fill_buf()?[0] == 0x40 {
-            self.consume(1);
+        } else if self.read_if_equal(0x40)? {
             Ok(()) // empty
         } else {
             self.read_signed_leb128(33)?;
@@ -39,8 +38,7 @@ pub trait ReadInstructionExt: BufRead {
                 // block, loop
                 self.read_block_type()?;
                 loop {
-                    if self.fill_buf()?[0] == 0x0b {
-                        self.consume(1);
+                    if self.read_if_equal(0x0b)? {
                         break;
                     }
                     self.read_instr()?;
@@ -50,14 +48,11 @@ pub trait ReadInstructionExt: BufRead {
                 // if
                 self.read_block_type()?;
                 loop {
-                    if self.fill_buf()?[0] == 0x0b {
-                        self.consume(1);
+                    if self.read_if_equal(0x0b)? {
                         break;
-                    } else if self.fill_buf()?[0] == 0x05 {
-                        self.consume(1);
+                    } else if self.read_if_equal(0x05)? {
                         loop {
-                            if self.fill_buf()?[0] == 0x0b {
-                                self.consume(1);
+                            if self.read_if_equal(0x0b)? {
                                 break;
                             }
                             self.read_instr()?;
