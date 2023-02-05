@@ -19,7 +19,7 @@ pub trait ReadSectionExt: BufRead {
             .context("failed to read section content")?;
         let mut cursor = Cursor::new(cont);
 
-        match idx {
+        let res = match idx {
             1 => cursor.read_type_section(),
             2 => cursor.read_import_section(),
             3 => cursor.read_function_section(),
@@ -30,9 +30,13 @@ pub trait ReadSectionExt: BufRead {
             8 => cursor.read_start_section(),
             9 => cursor.read_element_section(),
             10 => cursor.read_code_section(),
-            11 => cursor.read_data_count_section(),
+            11 => cursor.read_data_section(),
+            12 => cursor.read_data_count_section(),
             _ => bail!("invalid section id: {}", idx),
-        }
+        };
+
+        ensure!(!cursor.has_data_left()?, "invalid section size");
+        res
     }
 
     fn read_type_section(&mut self) -> Result<()> {
@@ -256,6 +260,44 @@ pub trait ReadSectionExt: BufRead {
             }
 
             self.read_expr()?;
+        }
+
+        Ok(())
+    }
+
+    fn read_data_section(&mut self) -> Result<()> {
+        let size = self
+            .read_u32()
+            .context("failed to read data section size")?;
+
+        for _ in 0..size {
+            let ty = self.read_u32()?;
+
+            match ty {
+                0 => {
+                    self.read_expr()?;
+
+                    let size = self.read_u32()?;
+                    for _ in 0..size {
+                        self.read_byte()?;
+                    }
+                }
+                1 => {
+                    let size = self.read_u32()?;
+                    for _ in 0..size {
+                        self.read_byte()?;
+                    }
+                }
+                2 => {
+                    self.read_u32()?;
+                    self.read_expr()?;
+                    let size = self.read_u32()?;
+                    for _ in 0..size {
+                        self.read_byte()?;
+                    }
+                }
+                _ => bail!("invalid data section type: {}", ty),
+            }
         }
 
         Ok(())
