@@ -31,7 +31,8 @@ pub trait ReadSectionExt: BufRead {
             8 => cursor.read_start_section(),
             9 => cursor.read_element_section(),
             10 => cursor.read_code_section(),
-            _ => Ok(()),
+            11 => cursor.read_data_count_section(),
+            _ => bail!("invalid section id: {}", idx),
         }
     }
 
@@ -260,6 +261,13 @@ pub trait ReadSectionExt: BufRead {
 
             self.read_expr()?;
         }
+
+        Ok(())
+    }
+
+    fn read_data_count_section(&mut self) -> Result<()> {
+        self.read_unsigned_leb128(32)
+            .context("failed to read data count section size")?;
 
         Ok(())
     }
