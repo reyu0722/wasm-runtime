@@ -1,15 +1,10 @@
+use super::util::ReadUtilExt;
 use anyhow::{bail, Context as _, Result};
-use std::io::Read;
+use std::io::BufRead;
 
-pub trait ReadValueExt: Read {
-    fn read_u8(&mut self) -> Result<u8> {
-        let mut a = [0u8; 1];
-        self.read_exact(&mut a)?;
-        Ok(a[0])
-    }
-
+pub trait ReadValueExt: BufRead {
     fn read_unsigned_leb128(&mut self, n: u64) -> Result<u64> {
-        let a = self.read_u8()?;
+        let a = self.read_byte()?;
         if a < 128 && (n >= 7 || a < (1 << n)) {
             Ok(a as u64)
         } else if a >= 128 && n > 7 {
@@ -21,7 +16,7 @@ pub trait ReadValueExt: Read {
     }
 
     fn read_signed_leb128(&mut self, n: u64) -> Result<i64> {
-        let a = self.read_u8()?;
+        let a = self.read_byte()?;
         if a < 64 && (n >= 7 || a < (1 << (n - 1))) {
             Ok(a as i64)
         } else if (64..128).contains(&a) && (n >= 8 || a >= (128 - (1 << (n - 1)))) {
@@ -45,7 +40,7 @@ pub trait ReadValueExt: Read {
     }
 }
 
-impl<R: Read + ?Sized> ReadValueExt for R {}
+impl<R: BufRead + ?Sized> ReadValueExt for R {}
 
 #[cfg(test)]
 mod tests {

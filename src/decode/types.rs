@@ -1,10 +1,10 @@
-use super::value::ReadValueExt;
+use super::{util::ReadUtilExt, value::ReadValueExt};
 use anyhow::{bail, ensure, Context as _, Result};
-use std::io::Read;
+use std::io::BufRead;
 
-pub trait ReadTypeExt: Read {
+pub trait ReadTypeExt: BufRead {
     fn read_value_type(&mut self) -> Result<()> {
-        let ty = self.read_u8().context("failed to read value type")?;
+        let ty = self.read_byte().context("failed to read value type")?;
 
         match ty {
             0x7f => (), // i32
@@ -33,7 +33,7 @@ pub trait ReadTypeExt: Read {
     }
 
     fn read_func_type(&mut self) -> Result<()> {
-        let magic = self.read_u8().context("failed to read magic number")?;
+        let magic = self.read_byte().context("failed to read magic number")?;
         ensure!(magic == 0x60, "invalid magic number: {}", magic);
 
         self.read_result_type()?;
@@ -43,7 +43,7 @@ pub trait ReadTypeExt: Read {
     }
 
     fn read_limits(&mut self) -> Result<()> {
-        let flag = self.read_u8().context("failed to read limits flag")?;
+        let flag = self.read_byte().context("failed to read limits flag")?;
         match flag {
             0x00 => {
                 self.read_unsigned_leb128(32)
@@ -62,7 +62,7 @@ pub trait ReadTypeExt: Read {
     }
 
     fn read_table_type(&mut self) -> Result<()> {
-        let reftype = self.read_u8().context("failed to read reftype")?;
+        let reftype = self.read_byte().context("failed to read reftype")?;
         ensure!(
             reftype == 0x70 || reftype == 0x6f,
             "invalid reftype: {}",
@@ -74,18 +74,18 @@ pub trait ReadTypeExt: Read {
     }
 
     fn read_global_type(&mut self) -> Result<()> {
-        let valtype = self.read_u8().context("failed to read valtype")?;
+        let valtype = self.read_byte().context("failed to read valtype")?;
         ensure!(
             valtype == 0x7f || valtype == 0x7e || valtype == 0x7d || valtype == 0x7c,
             "invalid valtype: {}",
             valtype
         );
 
-        let mutability = self.read_u8().context("failed to read mutability")?;
+        let mutability = self.read_byte().context("failed to read mutability")?;
         ensure!(mutability <= 1, "invalid mutability: {}", mutability);
 
         Ok(())
     }
 }
 
-impl<R: Read + ?Sized> ReadTypeExt for R {}
+impl<R: BufRead + ?Sized> ReadTypeExt for R {}

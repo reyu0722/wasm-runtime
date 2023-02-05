@@ -2,6 +2,12 @@ use anyhow::{anyhow, Result};
 use std::io::BufRead;
 
 pub trait ReadUtilExt: BufRead {
+    fn read_byte(&mut self) -> Result<u8> {
+        let mut a = [0u8; 1];
+        self.read_exact(&mut a)?;
+        Ok(a[0])
+    }
+
     fn read_if_equal(&mut self, b: u8) -> Result<bool> {
         let top = self
             .fill_buf()?

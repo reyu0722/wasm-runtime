@@ -18,10 +18,7 @@ pub fn decode_module(buf: &mut impl BufRead) -> Result<()> {
     );
     ensure!(header[4..8] == [0x01, 0x00, 0x00, 0x00], "invalid version");
 
-    loop {
-        if !buf.has_data_left()? {
-            break;
-        }
+    while buf.has_data_left()? {
         buf.read_section()?;
     }
     Ok(())

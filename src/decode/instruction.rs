@@ -4,10 +4,7 @@ use std::io::BufRead;
 
 pub trait ReadInstructionExt: BufRead {
     fn read_expr(&mut self) -> Result<()> {
-        loop {
-            if self.read_if_equal(0x0b)? {
-                break;
-            }
+        while !self.read_if_equal(0x0b)? {
             self.read_instr().context("failed to read instruction")?;
         }
 
@@ -29,7 +26,7 @@ pub trait ReadInstructionExt: BufRead {
     }
 
     fn read_instr(&mut self) -> Result<()> {
-        let opcode = self.read_u8().context("failed to read opcode")?;
+        let opcode = self.read_byte().context("failed to read opcode")?;
         match opcode {
             // control instructions
             0x00 => (), // unreachable
@@ -37,24 +34,16 @@ pub trait ReadInstructionExt: BufRead {
             0x02 | 0x03 => {
                 // block, loop
                 self.read_block_type()?;
-                loop {
-                    if self.read_if_equal(0x0b)? {
-                        break;
-                    }
+                while !self.read_if_equal(0x0b)? {
                     self.read_instr()?;
                 }
             }
             0x04 => {
                 // if
                 self.read_block_type()?;
-                loop {
-                    if self.read_if_equal(0x0b)? {
-                        break;
-                    } else if self.read_if_equal(0x05)? {
-                        loop {
-                            if self.read_if_equal(0x0b)? {
-                                break;
-                            }
+                while !self.read_if_equal(0x0b)? {
+                    if self.read_if_equal(0x05)? {
+                        while !self.read_if_equal(0x0b)? {
                             self.read_instr()?;
                         }
                         break;
@@ -90,7 +79,7 @@ pub trait ReadInstructionExt: BufRead {
             // reference instructions
             0xd0 => {
                 // ref.null
-                let ref_type = self.read_u8()?;
+                let ref_type = self.read_byte()?;
                 ensure!(
                     ref_type == 0x70 || ref_type == 0x6f,
                     "invalid ref.null type"
@@ -150,13 +139,13 @@ pub trait ReadInstructionExt: BufRead {
             0x43 => {
                 // f32.const
                 for _ in 0..4 {
-                    self.read_u8()?;
+                    self.read_byte()?;
                 }
             }
             0x44 => {
                 // f64.const
                 for _ in 0..8 {
-                    self.read_u8()?;
+                    self.read_byte()?;
                 }
             }
             idx if (0x45..=0xc4).contains(&idx) => {}
@@ -222,7 +211,7 @@ pub trait ReadInstructionExt: BufRead {
                     }
                     12 => {
                         for _ in 0..16 {
-                            self.read_u8()?;
+                            self.read_byte()?;
                         }
                     }
                     13 => {

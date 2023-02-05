@@ -1,5 +1,6 @@
 use super::instruction::ReadInstructionExt;
 use super::types::ReadTypeExt;
+use super::util::ReadUtilExt;
 use super::value::ReadValueExt;
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::{BufRead, Cursor};
@@ -57,7 +58,7 @@ pub trait ReadSectionExt: BufRead {
             self.read_name()?; // module
             self.read_name()?; // name
 
-            let desc = self.read_u8().context("failed to read import desc")?;
+            let desc = self.read_byte().context("failed to read import desc")?;
             match desc {
                 0x00 => {
                     self.read_unsigned_leb128(32)
@@ -136,7 +137,7 @@ pub trait ReadSectionExt: BufRead {
 
         for _ in 0..size {
             self.read_name()?;
-            let ty = self.read_u8().context("failed to read export type")?;
+            let ty = self.read_byte().context("failed to read export type")?;
             ensure!(ty <= 0x03, "invalid export type: {}", ty);
 
             self.read_unsigned_leb128(32)
@@ -170,7 +171,7 @@ pub trait ReadSectionExt: BufRead {
                     }
                 }
                 1 => {
-                    ensure!(self.read_u8()? == 0x00, "invalid element section type");
+                    ensure!(self.read_byte()? == 0x00, "invalid element section type");
                     let size = self.read_unsigned_leb128(32)?;
                     for _ in 0..size {
                         self.read_unsigned_leb128(32)?;
@@ -179,14 +180,14 @@ pub trait ReadSectionExt: BufRead {
                 2 => {
                     self.read_unsigned_leb128(32)?;
                     self.read_expr()?;
-                    ensure!(self.read_u8()? == 0x00, "invalid element section type");
+                    ensure!(self.read_byte()? == 0x00, "invalid element section type");
                     let size = self.read_unsigned_leb128(32)?;
                     for _ in 0..size {
                         self.read_unsigned_leb128(32)?;
                     }
                 }
                 3 => {
-                    ensure!(self.read_u8()? == 0x00, "invalid element section type");
+                    ensure!(self.read_byte()? == 0x00, "invalid element section type");
                     let size = self.read_unsigned_leb128(32)?;
                     for _ in 0..size {
                         self.read_unsigned_leb128(32)?;
@@ -200,7 +201,7 @@ pub trait ReadSectionExt: BufRead {
                     }
                 }
                 5 => {
-                    let ref_type = self.read_u8()?;
+                    let ref_type = self.read_byte()?;
                     ensure!(
                         ref_type == 0x70 || ref_type == 0x6f,
                         "invalid element section type"
@@ -213,7 +214,7 @@ pub trait ReadSectionExt: BufRead {
                 6 => {
                     self.read_unsigned_leb128(32)?;
                     self.read_expr()?;
-                    let ref_type = self.read_u8()?;
+                    let ref_type = self.read_byte()?;
                     ensure!(
                         ref_type == 0x70 || ref_type == 0x6f,
                         "invalid element section type"
@@ -224,7 +225,7 @@ pub trait ReadSectionExt: BufRead {
                     }
                 }
                 7 => {
-                    let ref_type = self.read_u8()?;
+                    let ref_type = self.read_byte()?;
                     ensure!(
                         ref_type == 0x70 || ref_type == 0x6f,
                         "invalid element section type"
