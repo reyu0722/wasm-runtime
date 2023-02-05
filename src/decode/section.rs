@@ -28,6 +28,7 @@ pub trait ReadSectionExt: BufRead {
             5 => cursor.read_memory_section(),
             6 => cursor.read_global_section(),
             7 => cursor.read_export_section(),
+            8 => cursor.read_start_section(),
             _ => Ok(()),
         }
     }
@@ -138,6 +139,13 @@ pub trait ReadSectionExt: BufRead {
             self.read_unsigned_leb128(32)
                 .context("failed to read export id")?;
         }
+
+        Ok(())
+    }
+
+    fn read_start_section(&mut self) -> Result<()> {
+        self.read_unsigned_leb128(32)
+            .context("failed to read start section func id")?;
 
         Ok(())
     }
