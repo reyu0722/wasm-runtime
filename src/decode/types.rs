@@ -1,4 +1,5 @@
 use super::{util::ReadUtilExt, value::ReadValueExt};
+use crate::read_vec;
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::BufRead;
 
@@ -21,11 +22,10 @@ pub trait ReadTypeExt: BufRead {
     }
 
     fn read_result_type(&mut self) -> Result<()> {
-        let size = self.read_u32().context("failed to read result type size")?;
-
-        for _ in 0..size {
-            self.read_value_type()?;
-        }
+        read_vec!(
+            self,
+            self.read_value_type().context("failed to read result type")
+        );
 
         Ok(())
     }

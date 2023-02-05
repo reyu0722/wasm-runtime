@@ -2,6 +2,7 @@ use super::instruction::ReadInstructionExt;
 use super::types::ReadTypeExt;
 use super::util::ReadUtilExt;
 use super::value::ReadValueExt;
+use crate::read_vec;
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::{BufRead, Cursor};
 
@@ -40,14 +41,7 @@ pub trait ReadSectionExt: BufRead {
     }
 
     fn read_type_section(&mut self) -> Result<()> {
-        let size = self
-            .read_u32()
-            .context("failed to read type section size")?;
-
-        for _ in 0..size {
-            self.read_func_type()?;
-        }
-
+        read_vec!(self, self.read_func_type()?);
         Ok(())
     }
 
@@ -82,67 +76,36 @@ pub trait ReadSectionExt: BufRead {
     }
 
     fn read_function_section(&mut self) -> Result<()> {
-        let size = self
-            .read_u32()
-            .context("failed to read function section size")?;
-
-        for _ in 0..size {
-            self.read_u32().context("failed to read type id")?;
-        }
-
+        read_vec!(self, self.read_u32()?);
         Ok(())
     }
 
     fn read_table_section(&mut self) -> Result<()> {
-        let size = self
-            .read_u32()
-            .context("failed to read table section size")?;
-
-        for _ in 0..size {
-            self.read_table_type()?;
-        }
-
+        read_vec!(self, self.read_table_type()?);
         Ok(())
     }
 
     fn read_memory_section(&mut self) -> Result<()> {
-        let size = self
-            .read_u32()
-            .context("failed to read memory section size")?;
-
-        for _ in 0..size {
-            self.read_limits()?;
-        }
-
+        read_vec!(self, self.read_limits()?);
         Ok(())
     }
 
     fn read_global_section(&mut self) -> Result<()> {
-        let size = self
-            .read_u32()
-            .context("failed to read global section size")?;
-
-        for _ in 0..size {
+        read_vec!(self, {
             self.read_global_type()?;
-            self.read_expr()?;
-        }
-
+            self.read_expr()?
+        });
         Ok(())
     }
 
     fn read_export_section(&mut self) -> Result<()> {
-        let size = self
-            .read_u32()
-            .context("failed to read export section size")?;
-
-        for _ in 0..size {
+        read_vec!(self, {
             self.read_name()?;
             let ty = self.read_byte().context("failed to read export type")?;
             ensure!(ty <= 0x03, "invalid export type: {}", ty);
 
-            self.read_u32().context("failed to read export id")?;
-        }
-
+            self.read_u32().context("failed to read export id")?
+        });
         Ok(())
     }
 
@@ -154,50 +117,31 @@ pub trait ReadSectionExt: BufRead {
     }
 
     fn read_element_section(&mut self) -> Result<()> {
-        let size = self
-            .read_u32()
-            .context("failed to read element section size")?;
-
-        for _ in 0..size {
+        read_vec!(self, {
             let ty = self.read_u32()?;
 
             match ty {
                 0 => {
                     self.read_expr()?;
-                    let size = self.read_u32()?;
-                    for _ in 0..size {
-                        self.read_u32()?;
-                    }
+                    read_vec!(self, self.read_u32()?);
                 }
                 1 => {
-                    ensure!(self.read_byte()? == 0x00, "invalid element section type");
-                    let size = self.read_u32()?;
-                    for _ in 0..size {
-                        self.read_u32()?;
-                    }
+                    self.read_and_ensure(0x00)?;
+                    read_vec!(self, self.read_u32()?);
                 }
                 2 => {
                     self.read_u32()?;
                     self.read_expr()?;
-                    ensure!(self.read_byte()? == 0x00, "invalid element section type");
-                    let size = self.read_u32()?;
-                    for _ in 0..size {
-                        self.read_u32()?;
-                    }
+                    self.read_and_ensure(0x00)?;
+                    read_vec!(self, self.read_u32()?);
                 }
                 3 => {
-                    ensure!(self.read_byte()? == 0x00, "invalid element section type");
-                    let size = self.read_u32()?;
-                    for _ in 0..size {
-                        self.read_u32()?;
-                    }
+                    self.read_and_ensure(0x00)?;
+                    read_vec!(self, self.read_u32()?);
                 }
                 4 => {
                     self.read_expr()?;
-                    let size = self.read_u32()?;
-                    for _ in 0..size {
-                        self.read_expr()?;
-                    }
+                    read_vec!(self, self.read_expr()?);
                 }
                 5 => {
                     let ref_type = self.read_byte()?;
@@ -205,10 +149,7 @@ pub trait ReadSectionExt: BufRead {
                         ref_type == 0x70 || ref_type == 0x6f,
                         "invalid element section type"
                     );
-                    let size = self.read_u32()?;
-                    for _ in 0..size {
-                        self.read_expr()?;
-                    }
+                    read_vec!(self, self.read_expr()?);
                 }
                 6 => {
                     self.read_u32()?;
@@ -218,10 +159,7 @@ pub trait ReadSectionExt: BufRead {
                         ref_type == 0x70 || ref_type == 0x6f,
                         "invalid element section type"
                     );
-                    let size = self.read_u32()?;
-                    for _ in 0..size {
-                        self.read_expr()?;
-                    }
+                    read_vec!(self, self.read_expr()?);
                 }
                 7 => {
                     let ref_type = self.read_byte()?;
@@ -229,76 +167,52 @@ pub trait ReadSectionExt: BufRead {
                         ref_type == 0x70 || ref_type == 0x6f,
                         "invalid element section type"
                     );
-                    let size = self.read_u32()?;
-                    for _ in 0..size {
-                        self.read_expr()?;
-                    }
+                    read_vec!(self, self.read_expr()?);
                 }
                 _ => bail!("invalid element section type: {}", ty),
             }
-        }
+        });
 
         Ok(())
     }
 
     fn read_code_section(&mut self) -> Result<()> {
-        let size = self
-            .read_u32()
-            .context("failed to read code section size")?;
-
-        for _ in 0..size {
+        read_vec!(self, {
             // TODO: check size
             self.read_u32()
                 .context("failed to read code section body size")?;
 
-            let size = self
-                .read_u32()
-                .context("failed to read code section vec size")?;
-            for _ in 0..size {
+            read_vec!(self, {
                 self.read_u32()?;
                 self.read_value_type()?;
-            }
+            });
 
-            self.read_expr()?;
-        }
+            self.read_expr()?
+        });
 
         Ok(())
     }
 
     fn read_data_section(&mut self) -> Result<()> {
-        let size = self
-            .read_u32()
-            .context("failed to read data section size")?;
-
-        for _ in 0..size {
+        read_vec!(self, {
             let ty = self.read_u32()?;
 
             match ty {
                 0 => {
                     self.read_expr()?;
-
-                    let size = self.read_u32()?;
-                    for _ in 0..size {
-                        self.read_byte()?;
-                    }
+                    read_vec!(self, self.read_byte()?);
                 }
                 1 => {
-                    let size = self.read_u32()?;
-                    for _ in 0..size {
-                        self.read_byte()?;
-                    }
+                    read_vec!(self, self.read_byte()?);
                 }
                 2 => {
                     self.read_u32()?;
                     self.read_expr()?;
-                    let size = self.read_u32()?;
-                    for _ in 0..size {
-                        self.read_byte()?;
-                    }
+                    read_vec!(self, self.read_byte()?);
                 }
                 _ => bail!("invalid data section type: {}", ty),
             }
-        }
+        });
 
         Ok(())
     }

@@ -1,4 +1,5 @@
 use super::{types::ReadTypeExt, util::ReadUtilExt, value::ReadValueExt};
+use crate::read_vec;
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::BufRead;
 
@@ -57,10 +58,7 @@ pub trait ReadInstructionExt: BufRead {
             }
             0x0e => {
                 // br_table
-                let size = self.read_u32()?;
-                for _ in 0..size {
-                    self.read_u32()?;
-                }
+                read_vec!(self, self.read_u32()?);
                 self.read_u32()?;
             }
             0x0f => {
@@ -99,10 +97,7 @@ pub trait ReadInstructionExt: BufRead {
             }
             0x1c => {
                 // select t*
-                let size = self.read_u32()?;
-                for _ in 0..size {
-                    self.read_value_type()?;
-                }
+                read_vec!(self, self.read_value_type()?);
             }
 
             // variable instructions

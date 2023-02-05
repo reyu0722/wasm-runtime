@@ -40,3 +40,15 @@ pub trait ReadUtilExt: BufRead {
 }
 
 impl<R: BufRead + ?Sized> ReadUtilExt for R {}
+
+#[macro_export]
+macro_rules! read_vec {
+    ($r: expr, $x: expr) => {{
+        let size = $r.read_u32().context("failed to read vec size")?;
+        let mut vec = Vec::with_capacity(size as usize);
+        for _ in 0..size {
+            vec.push($x);
+        }
+        vec
+    }};
+}
