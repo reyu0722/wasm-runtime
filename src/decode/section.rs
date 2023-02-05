@@ -29,6 +29,7 @@ pub trait ReadSectionExt: BufRead {
             6 => cursor.read_global_section(),
             7 => cursor.read_export_section(),
             8 => cursor.read_start_section(),
+            9 => cursor.read_element_section(),
             _ => Ok(()),
         }
     }
@@ -146,6 +147,94 @@ pub trait ReadSectionExt: BufRead {
     fn read_start_section(&mut self) -> Result<()> {
         self.read_unsigned_leb128(32)
             .context("failed to read start section func id")?;
+
+        Ok(())
+    }
+
+    fn read_element_section(&mut self) -> Result<()> {
+        let size = self
+            .read_unsigned_leb128(32)
+            .context("failed to read element section size")?;
+
+        for _ in 0..size {
+            let ty = self.read_unsigned_leb128(32)?;
+
+            match ty {
+                0 => {
+                    self.read_expr()?;
+                    let size = self.read_unsigned_leb128(32)?;
+                    for _ in 0..size {
+                        self.read_unsigned_leb128(32)?;
+                    }
+                }
+                1 => {
+                    ensure!(self.read_u8()? == 0x00, "invalid element section type");
+                    let size = self.read_unsigned_leb128(32)?;
+                    for _ in 0..size {
+                        self.read_unsigned_leb128(32)?;
+                    }
+                }
+                2 => {
+                    self.read_unsigned_leb128(32)?;
+                    self.read_expr()?;
+                    ensure!(self.read_u8()? == 0x00, "invalid element section type");
+                    let size = self.read_unsigned_leb128(32)?;
+                    for _ in 0..size {
+                        self.read_unsigned_leb128(32)?;
+                    }
+                }
+                3 => {
+                    ensure!(self.read_u8()? == 0x00, "invalid element section type");
+                    let size = self.read_unsigned_leb128(32)?;
+                    for _ in 0..size {
+                        self.read_unsigned_leb128(32)?;
+                    }
+                }
+                4 => {
+                    self.read_expr()?;
+                    let size = self.read_unsigned_leb128(32)?;
+                    for _ in 0..size {
+                        self.read_expr()?;
+                    }
+                }
+                5 => {
+                    let ref_type = self.read_u8()?;
+                    ensure!(
+                        ref_type == 0x70 || ref_type == 0x6f,
+                        "invalid element section type"
+                    );
+                    let size = self.read_unsigned_leb128(32)?;
+                    for _ in 0..size {
+                        self.read_expr()?;
+                    }
+                }
+                6 => {
+                    self.read_unsigned_leb128(32)?;
+                    self.read_expr()?;
+                    let ref_type = self.read_u8()?;
+                    ensure!(
+                        ref_type == 0x70 || ref_type == 0x6f,
+                        "invalid element section type"
+                    );
+                    let size = self.read_unsigned_leb128(32)?;
+                    for _ in 0..size {
+                        self.read_expr()?;
+                    }
+                }
+                7 => {
+                    let ref_type = self.read_u8()?;
+                    ensure!(
+                        ref_type == 0x70 || ref_type == 0x6f,
+                        "invalid element section type"
+                    );
+                    let size = self.read_unsigned_leb128(32)?;
+                    for _ in 0..size {
+                        self.read_expr()?;
+                    }
+                }
+                _ => bail!("invalid element section type: {}", ty),
+            }
+        }
 
         Ok(())
     }
