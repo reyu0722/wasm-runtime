@@ -24,7 +24,7 @@ pub trait ReadValueExt: Read {
         let a = self.read_u8()?;
         if a < 64 && (n >= 7 || a < (1 << (n - 1))) {
             Ok(a as i64)
-        } else if 64 <= a && a < 128 && (n >= 8 || a >= (128 - (1 << (n - 1)))) {
+        } else if (64..128).contains(&a) && (n >= 8 || a >= (128 - (1 << (n - 1)))) {
             Ok(a as i64 - 128)
         } else if a >= 128 && n > 7 {
             let b = self.read_signed_leb128(n - 7)?;

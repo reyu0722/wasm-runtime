@@ -134,7 +134,7 @@ pub trait ReadInstructionExt: BufRead {
             }
 
             // memory instructions
-            idx if 0x28 <= idx && idx <= 0x3e => {
+            idx if (0x28..=0x3e).contains(&idx) => {
                 self.read_unsigned_leb128(32)?;
                 self.read_unsigned_leb128(32)?;
             }
@@ -164,7 +164,7 @@ pub trait ReadInstructionExt: BufRead {
                     self.read_u8()?;
                 }
             }
-            idx if 0x45 <= idx && idx <= 0xc4 => {}
+            idx if (0x45..=0xc4).contains(&idx) => {}
 
             0xfc => {
                 let kind = self.read_unsigned_leb128(32)?;
@@ -235,7 +235,7 @@ pub trait ReadInstructionExt: BufRead {
                             self.read_unsigned_leb128(32)?;
                         }
                     }
-                    kind if 21 <= kind && kind <= 34 => {
+                    kind if (21..=34).contains(&kind) => {
                         self.read_unsigned_leb128(32)?;
                     }
                     _ => {}
