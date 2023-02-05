@@ -29,6 +29,13 @@ pub trait ReadValueExt: BufRead {
         }
     }
 
+    fn read_u32(&mut self) -> Result<u32> {
+        let val = self
+            .read_unsigned_leb128(32)
+            .context("failed to read u32")?;
+        Ok(val as u32)
+    }
+
     fn read_name(&mut self) -> Result<()> {
         let size = self
             .read_unsigned_leb128(32)

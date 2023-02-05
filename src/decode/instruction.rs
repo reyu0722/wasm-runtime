@@ -53,27 +53,27 @@ pub trait ReadInstructionExt: BufRead {
             }
             0x0c | 0x0d => {
                 // br, br_if
-                self.read_unsigned_leb128(32)?;
+                self.read_u32()?;
             }
             0x0e => {
                 // br_table
-                let size = self.read_unsigned_leb128(32)?;
+                let size = self.read_u32()?;
                 for _ in 0..size {
-                    self.read_unsigned_leb128(32)?;
+                    self.read_u32()?;
                 }
-                self.read_unsigned_leb128(32)?;
+                self.read_u32()?;
             }
             0x0f => {
                 // return
             }
             0x10 => {
                 // call
-                self.read_unsigned_leb128(32)?;
+                self.read_u32()?;
             }
             0x11 => {
                 // call_indirect
-                self.read_unsigned_leb128(32)?;
-                self.read_unsigned_leb128(32)?;
+                self.read_u32()?;
+                self.read_u32()?;
             }
 
             // reference instructions
@@ -90,7 +90,7 @@ pub trait ReadInstructionExt: BufRead {
             }
             0xd2 => {
                 // ref.func
-                self.read_unsigned_leb128(32)?;
+                self.read_u32()?;
             }
 
             // parametric instructions
@@ -99,7 +99,7 @@ pub trait ReadInstructionExt: BufRead {
             }
             0x1c => {
                 // select t*
-                let size = self.read_unsigned_leb128(32)?;
+                let size = self.read_u32()?;
                 for _ in 0..size {
                     self.read_value_type()?;
                 }
@@ -108,23 +108,23 @@ pub trait ReadInstructionExt: BufRead {
             // variable instructions
             0x20 | 0x21 | 0x22 | 0x23 | 0x24 => {
                 // local.get, local.set, local.tee, global.get, global.set
-                self.read_unsigned_leb128(32)?;
+                self.read_u32()?;
             }
 
             // table instructions
             0x25 | 0x26 => {
                 // table.get, table.set
-                self.read_unsigned_leb128(32)?;
+                self.read_u32()?;
             }
 
             // memory instructions
             idx if (0x28..=0x3e).contains(&idx) => {
-                self.read_unsigned_leb128(32)?;
-                self.read_unsigned_leb128(32)?;
+                self.read_u32()?;
+                self.read_u32()?;
             }
             0x3f | 0x40 => {
                 // memory.size, memory.grow
-                self.read_unsigned_leb128(32)?;
+                self.read_u32()?;
             }
 
             // numeric instructions
@@ -151,46 +151,46 @@ pub trait ReadInstructionExt: BufRead {
             idx if (0x45..=0xc4).contains(&idx) => {}
 
             0xfc => {
-                let kind = self.read_unsigned_leb128(32)?;
+                let kind = self.read_u32()?;
                 match kind {
                     // numeric instructions
                     kind if kind <= 0x07 => {}
 
                     // memory instructions
                     0x08 => {
-                        self.read_unsigned_leb128(32)?;
+                        self.read_u32()?;
                         ensure!(
-                            self.read_unsigned_leb128(32)? == 0,
+                            self.read_u32()? == 0,
                             "invalid memory instruction"
                         )
                     }
                     0x09 => {
-                        self.read_unsigned_leb128(32)?;
+                        self.read_u32()?;
                     }
                     0x10 => {
                         ensure!(
-                            self.read_unsigned_leb128(32)? == 0,
+                            self.read_u32()? == 0,
                             "invalid memory instruction"
                         );
                         ensure!(
-                            self.read_unsigned_leb128(32)? == 0,
+                            self.read_u32()? == 0,
                             "invalid memory instruction"
                         );
                     }
                     0x11 => {
                         ensure!(
-                            self.read_unsigned_leb128(32)? == 0,
+                            self.read_u32()? == 0,
                             "invalid memory instruction"
                         );
                     }
 
                     // table instructions
                     0x12 | 0x14 => {
-                        self.read_unsigned_leb128(32)?;
-                        self.read_unsigned_leb128(32)?;
+                        self.read_u32()?;
+                        self.read_u32()?;
                     }
                     0x13 | 0x15 | 0x16 | 0x17 => {
-                        self.read_unsigned_leb128(32)?;
+                        self.read_u32()?;
                     }
                     _ => bail!("invalid table instruction: {}", kind),
                 }
@@ -198,16 +198,16 @@ pub trait ReadInstructionExt: BufRead {
 
             // vector instructions
             0xfd => {
-                let kind = self.read_unsigned_leb128(32)?;
+                let kind = self.read_u32()?;
                 match kind {
                     kind if kind <= 11 || kind == 92 || kind == 93 => {
-                        self.read_unsigned_leb128(32)?;
-                        self.read_unsigned_leb128(32)?;
+                        self.read_u32()?;
+                        self.read_u32()?;
                     }
                     kind if 84 <= kind || kind <= 91 => {
-                        self.read_unsigned_leb128(32)?;
-                        self.read_unsigned_leb128(32)?;
-                        self.read_unsigned_leb128(32)?;
+                        self.read_u32()?;
+                        self.read_u32()?;
+                        self.read_u32()?;
                     }
                     12 => {
                         for _ in 0..16 {
@@ -216,11 +216,11 @@ pub trait ReadInstructionExt: BufRead {
                     }
                     13 => {
                         for _ in 0..16 {
-                            self.read_unsigned_leb128(32)?;
+                            self.read_u32()?;
                         }
                     }
                     kind if (21..=34).contains(&kind) => {
-                        self.read_unsigned_leb128(32)?;
+                        self.read_u32()?;
                     }
                     _ => {}
                 }
