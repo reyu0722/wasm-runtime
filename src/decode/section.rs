@@ -1,8 +1,4 @@
-use super::instruction::ReadInstructionExt;
-use super::types::ReadTypeExt;
-use super::util::ReadUtilExt;
-use super::value::ReadValueExt;
-use crate::read_vec;
+use super::prelude::*;
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::{BufRead, Cursor};
 

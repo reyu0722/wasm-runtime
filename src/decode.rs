@@ -2,11 +2,12 @@ use anyhow::{ensure, Result};
 use std::io::BufRead;
 
 mod instruction;
+mod prelude;
 mod section;
 mod types;
 mod util;
 mod value;
-use section::ReadSectionExt;
+use prelude::*;
 
 pub fn decode_module(buf: &mut impl BufRead) -> Result<()> {
     let mut header = [0u8; 8];

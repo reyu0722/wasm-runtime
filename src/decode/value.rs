@@ -1,4 +1,4 @@
-use super::util::ReadUtilExt;
+use super::prelude::*;
 use anyhow::{bail, Context as _, Result};
 use std::io::BufRead;
 
