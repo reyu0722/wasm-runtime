@@ -1,58 +1,65 @@
 use super::prelude::*;
+use crate::core::{FuncType, Limits, NumType, RefType, ResultType, ValueType, VecType};
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::BufRead;
 
 pub trait ReadTypeExt: BufRead {
-    fn read_value_type(&mut self) -> Result<()> {
+    fn read_value_type(&mut self) -> Result<ValueType> {
         let ty = self.read_byte().context("failed to read value type")?;
 
-        match ty {
-            0x7f => (), // i32
-            0x7e => (), // i64
-            0x7d => (), // u32
-            0x7c => (), // u64
-            0x7b => (), // v128
-            0x70 => (), // funcref
-            0x6f => (), // externref
+        let res = match ty {
+            0x7f => ValueType::Num(NumType::I32),       // i32
+            0x7e => ValueType::Num(NumType::I64),       // i64
+            0x7d => ValueType::Num(NumType::F32),       // f32
+            0x7c => ValueType::Num(NumType::F64),       // f64
+            0x7b => ValueType::Vec(VecType::V128),      // v128
+            0x70 => ValueType::Ref(RefType::Funcref),   // funcref
+            0x6f => ValueType::Ref(RefType::Externref), // externref
             _ => bail!("invalid value type: {}", ty),
-        }
+        };
 
-        Ok(())
+        Ok(res)
     }
 
-    fn read_result_type(&mut self) -> Result<()> {
-        read_vec!(
+    fn read_result_type(&mut self) -> Result<ResultType> {
+        let vec = read_vec!(
             self,
-            self.read_value_type().context("failed to read result type")
+            self.read_value_type()
+                .context("failed to read result type")?
         );
 
-        Ok(())
+        Ok(vec)
     }
 
-    fn read_func_type(&mut self) -> Result<()> {
-        let magic = self.read_byte().context("failed to read magic number")?;
-        ensure!(magic == 0x60, "invalid magic number: {}", magic);
+    fn read_func_type(&mut self) -> Result<FuncType> {
+        self.read_and_ensure(0x60)
+            .context("failed to read func type")?;
 
-        self.read_result_type()?;
-        self.read_result_type()?;
-
-        Ok(())
+        Ok(FuncType {
+            params: self.read_result_type()?,
+            results: self.read_result_type()?,
+        })
     }
 
-    fn read_limits(&mut self) -> Result<()> {
+    fn read_limits(&mut self) -> Result<Limits> {
         let flag = self.read_byte().context("failed to read limits flag")?;
-        match flag {
+        let limits = match flag {
             0x00 => {
-                self.read_u32().context("failed to read limits min")?;
+                let min = self.read_u32().context("failed to read limits min")?;
+                Limits { min, max: None }
             }
             0x01 => {
-                self.read_u32().context("failed to read limits min")?;
-                self.read_u32().context("failed to read limits max")?;
+                let min = self.read_u32().context("failed to read limits min")?;
+                let max = self.read_u32().context("failed to read limits max")?;
+                Limits {
+                    min,
+                    max: Some(max),
+                }
             }
             _ => bail!("invalid limits flag: {}", flag),
-        }
+        };
 
-        Ok(())
+        Ok(limits)
     }
 
     fn read_table_type(&mut self) -> Result<()> {

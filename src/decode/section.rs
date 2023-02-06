@@ -1,9 +1,10 @@
 use super::prelude::*;
+use crate::core::{FuncType, Module};
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::{BufRead, Cursor};
 
 pub trait ReadSectionExt: BufRead {
-    fn read_section(&mut self) -> Result<()> {
+    fn read_section(&mut self) -> Result<Module> {
         let idx = self
             .read_unsigned_leb128(8)
             .context("failed to read section index")?;
@@ -16,29 +17,32 @@ pub trait ReadSectionExt: BufRead {
             .context("failed to read section content")?;
         let mut cursor = Cursor::new(cont);
 
-        let res = match idx {
-            1 => cursor.read_type_section(),
-            2 => cursor.read_import_section(),
-            3 => cursor.read_function_section(),
-            4 => cursor.read_table_section(),
-            5 => cursor.read_memory_section(),
-            6 => cursor.read_global_section(),
-            7 => cursor.read_export_section(),
-            8 => cursor.read_start_section(),
-            9 => cursor.read_element_section(),
-            10 => cursor.read_code_section(),
-            11 => cursor.read_data_section(),
-            12 => cursor.read_data_count_section(),
+        let mut types = Vec::new();
+
+        match idx {
+            1 => {
+                types = cursor.read_type_section()?;
+            }
+            2 => cursor.read_import_section()?,
+            3 => cursor.read_function_section()?,
+            4 => cursor.read_table_section()?,
+            5 => cursor.read_memory_section()?,
+            6 => cursor.read_global_section()?,
+            7 => cursor.read_export_section()?,
+            8 => cursor.read_start_section()?,
+            9 => cursor.read_element_section()?,
+            10 => cursor.read_code_section()?,
+            11 => cursor.read_data_section()?,
+            12 => cursor.read_data_count_section()?,
             _ => bail!("invalid section id: {}", idx),
         };
 
         ensure!(!cursor.has_data_left()?, "invalid section size");
-        res
+        Ok(Module { types })
     }
 
-    fn read_type_section(&mut self) -> Result<()> {
-        read_vec!(self, self.read_func_type()?);
-        Ok(())
+    fn read_type_section(&mut self) -> Result<Vec<FuncType>> {
+        Ok(read_vec!(self, self.read_func_type()?))
     }
 
     fn read_import_section(&mut self) -> Result<()> {
