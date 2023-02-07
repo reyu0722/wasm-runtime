@@ -19,6 +19,7 @@ pub trait ReadSectionExt: BufRead {
 
         let mut types = Vec::new();
         let mut imports = Vec::new();
+        let mut funcs_idx = Vec::new();
 
         match idx {
             1 => {
@@ -27,7 +28,9 @@ pub trait ReadSectionExt: BufRead {
             2 => {
                 imports = cursor.read_import_section()?;
             }
-            3 => cursor.read_function_section()?,
+            3 => {
+                funcs_idx = cursor.read_function_section()?;
+            }
             4 => cursor.read_table_section()?,
             5 => cursor.read_memory_section()?,
             6 => cursor.read_global_section()?,
@@ -80,9 +83,9 @@ pub trait ReadSectionExt: BufRead {
         Ok(vec)
     }
 
-    fn read_function_section(&mut self) -> Result<()> {
-        read_vec!(self, self.read_u32()?);
-        Ok(())
+    fn read_function_section(&mut self) -> Result<Vec<u32>> {
+        let vec = read_vec!(self, self.read_u32()?);
+        Ok(vec)
     }
 
     fn read_table_section(&mut self) -> Result<()> {
