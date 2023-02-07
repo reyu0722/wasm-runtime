@@ -1,5 +1,5 @@
 use super::prelude::*;
-use crate::core::{FuncType, Import, ImportDesc, Module};
+use crate::core::{FuncType, Import, ImportDesc, Module, TableType, MemoryType};
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::{BufRead, Cursor};
 
@@ -20,6 +20,8 @@ pub trait ReadSectionExt: BufRead {
         let mut types = Vec::new();
         let mut imports = Vec::new();
         let mut funcs_idx = Vec::new();
+        let mut tables = Vec::new();
+        let mut memories = Vec::new();
 
         match idx {
             1 => {
@@ -31,8 +33,12 @@ pub trait ReadSectionExt: BufRead {
             3 => {
                 funcs_idx = cursor.read_function_section()?;
             }
-            4 => cursor.read_table_section()?,
-            5 => cursor.read_memory_section()?,
+            4 => {
+                tables = cursor.read_table_section()?;
+            }
+            5 => {
+                memories = cursor.read_memory_section()?;
+            }
             6 => cursor.read_global_section()?,
             7 => cursor.read_export_section()?,
             8 => cursor.read_start_section()?,
@@ -44,7 +50,12 @@ pub trait ReadSectionExt: BufRead {
         };
 
         ensure!(!cursor.has_data_left()?, "invalid section size");
-        Ok(Module { types, imports })
+        Ok(Module {
+            types,
+            imports,
+            tables,
+            memories,
+        })
     }
 
     fn read_type_section(&mut self) -> Result<Vec<FuncType>> {
@@ -88,14 +99,14 @@ pub trait ReadSectionExt: BufRead {
         Ok(vec)
     }
 
-    fn read_table_section(&mut self) -> Result<()> {
-        read_vec!(self, self.read_table_type()?);
-        Ok(())
+    fn read_table_section(&mut self) -> Result<Vec<TableType>> {
+        let table_type = read_vec!(self, self.read_table_type()?);
+        Ok(table_type)
     }
 
-    fn read_memory_section(&mut self) -> Result<()> {
-        read_vec!(self, self.read_limits()?);
-        Ok(())
+    fn read_memory_section(&mut self) -> Result<Vec<MemoryType>> {
+        let memories = read_vec!(self, self.read_limits()?);
+        Ok(memories)
     }
 
     fn read_global_section(&mut self) -> Result<()> {

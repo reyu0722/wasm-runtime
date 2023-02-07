@@ -6,6 +6,8 @@ pub use value::*;
 pub struct Module {
     pub types: Vec<FuncType>,
     pub imports: Vec<Import>,
+    pub tables: Vec<TableType>,
+    pub memories: Vec<MemoryType>,
 }
 
 pub struct Import {
