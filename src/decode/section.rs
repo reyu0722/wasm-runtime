@@ -1,5 +1,5 @@
 use super::prelude::*;
-use crate::core::{FuncType, Module};
+use crate::core::{FuncType, Import, ImportDesc, Module};
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::{BufRead, Cursor};
 
@@ -18,12 +18,15 @@ pub trait ReadSectionExt: BufRead {
         let mut cursor = Cursor::new(cont);
 
         let mut types = Vec::new();
+        let mut imports = Vec::new();
 
         match idx {
             1 => {
                 types = cursor.read_type_section()?;
             }
-            2 => cursor.read_import_section()?,
+            2 => {
+                imports = cursor.read_import_section()?;
+            }
             3 => cursor.read_function_section()?,
             4 => cursor.read_table_section()?,
             5 => cursor.read_memory_section()?,
@@ -38,41 +41,43 @@ pub trait ReadSectionExt: BufRead {
         };
 
         ensure!(!cursor.has_data_left()?, "invalid section size");
-        Ok(Module { types })
+        Ok(Module { types, imports })
     }
 
     fn read_type_section(&mut self) -> Result<Vec<FuncType>> {
         Ok(read_vec!(self, self.read_func_type()?))
     }
 
-    fn read_import_section(&mut self) -> Result<()> {
-        let size = self
-            .read_u32()
-            .context("failed to read import section size")?;
+    fn read_import_section(&mut self) -> Result<Vec<Import>> {
+        let vec = read_vec!(self, {
+            let module = self.read_name()?; // module
+            let name = self.read_name()?; // name
 
-        for _ in 0..size {
-            self.read_name()?; // module
-            self.read_name()?; // name
-
-            let desc = self.read_byte().context("failed to read import desc")?;
-            match desc {
+            let desc_type = self.read_byte().context("failed to read import desc")?;
+            let desc = match desc_type {
                 0x00 => {
-                    self.read_u32().context("failed to read type id")?;
+                    let func = self.read_u32().context("failed to read type id")?;
+                    ImportDesc::Func(func)
                 }
                 0x01 => {
-                    self.read_table_type()?;
+                    let table = self.read_table_type()?;
+                    ImportDesc::Table(table)
                 }
                 0x02 => {
-                    self.read_limits()?;
+                    let limits = self.read_limits()?;
+                    ImportDesc::Memory(limits)
                 }
                 0x03 => {
-                    self.read_global_type()?;
+                    let global_type = self.read_global_type()?;
+                    ImportDesc::Global(global_type)
                 }
-                _ => bail!("invalid import desc: {}", desc),
-            }
-        }
+                _ => bail!("invalid import desc: {}", desc_type),
+            };
 
-        Ok(())
+            Import { module, name, desc }
+        });
+
+        Ok(vec)
     }
 
     fn read_function_section(&mut self) -> Result<()> {

@@ -1,4 +1,5 @@
 use super::prelude::*;
+use crate::core::Name;
 use anyhow::{bail, Context as _, Result};
 use std::io::BufRead;
 
@@ -36,12 +37,12 @@ pub trait ReadValueExt: BufRead {
         Ok(val as u32)
     }
 
-    fn read_name(&mut self) -> Result<()> {
+    fn read_name(&mut self) -> Result<Name> {
         let size = self.read_u32().context("failed to read name size")?;
         let mut cont = vec![0u8; size as usize];
         self.read_exact(cont.as_mut_slice())
             .context("failed to read name content")?;
-        Ok(())
+        Ok(Name::new(String::from_utf8(cont)?))
     }
 }
 

@@ -14,7 +14,7 @@ pub trait ReadInstructionExt: BufRead {
     fn read_block_type(&mut self) -> Result<()> {
         // TODO: fix
         let mut slice = &self.fill_buf()?[0..1];
-        if let Ok(_) = slice.read_value_type() {
+        if slice.read_value_type().is_ok() {
             self.consume(1);
             Ok(())
         } else if self.read_if_equal(0x40)? {

@@ -1,5 +1,7 @@
 use super::prelude::*;
-use crate::core::{FuncType, Limits, NumType, RefType, ResultType, ValueType, VecType};
+use crate::core::{
+    FuncType, GlobalType, Limits, NumType, RefType, ResultType, TableType, ValueType, VecType,
+};
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::BufRead;
 
@@ -62,30 +64,28 @@ pub trait ReadTypeExt: BufRead {
         Ok(limits)
     }
 
-    fn read_table_type(&mut self) -> Result<()> {
-        let reftype = self.read_byte().context("failed to read reftype")?;
-        ensure!(
-            reftype == 0x70 || reftype == 0x6f,
-            "invalid reftype: {}",
-            reftype
-        );
+    fn read_table_type(&mut self) -> Result<TableType> {
+        let b = self.read_byte().context("failed to read reftype")?;
+        let reftype = RefType::from_byte(b)?;
 
-        self.read_limits()?;
-        Ok(())
+        let limits = self.read_limits()?;
+        Ok(TableType {
+            limits,
+            elem_type: reftype,
+        })
     }
 
-    fn read_global_type(&mut self) -> Result<()> {
-        let valtype = self.read_byte().context("failed to read valtype")?;
-        ensure!(
-            valtype == 0x7f || valtype == 0x7e || valtype == 0x7d || valtype == 0x7c,
-            "invalid valtype: {}",
-            valtype
-        );
+    fn read_global_type(&mut self) -> Result<GlobalType> {
+        let b = self.read_byte().context("failed to read valtype")?;
+        let value_type = ValueType::from_byte(b)?;
 
         let mutability = self.read_byte().context("failed to read mutability")?;
         ensure!(mutability <= 1, "invalid mutability: {}", mutability);
 
-        Ok(())
+        Ok(GlobalType {
+            value_type,
+            mutability: mutability == 1,
+        })
     }
 }
 
