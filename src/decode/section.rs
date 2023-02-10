@@ -1,5 +1,7 @@
 use super::prelude::*;
-use crate::core::{FuncType, Global, Import, ImportDesc, MemoryType, Module, TableType};
+use crate::core::{
+    Export, ExportDesc, FuncType, Global, Import, ImportDesc, MemoryType, Module, TableType,
+};
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::{BufRead, Cursor};
 
@@ -23,6 +25,7 @@ pub trait ReadSectionExt: BufRead {
         let mut tables = Vec::new();
         let mut memories = Vec::new();
         let mut globals = Vec::new();
+        let mut exports = Vec::new();
 
         match idx {
             1 => {
@@ -43,7 +46,9 @@ pub trait ReadSectionExt: BufRead {
             6 => {
                 globals = cursor.read_global_section()?;
             }
-            7 => cursor.read_export_section()?,
+            7 => {
+                exports = cursor.read_export_section()?;
+            }
             8 => cursor.read_start_section()?,
             9 => cursor.read_element_section()?,
             10 => cursor.read_code_section()?,
@@ -56,6 +61,7 @@ pub trait ReadSectionExt: BufRead {
         Ok(Module {
             types,
             imports,
+            exports,
             tables,
             memories,
             globals,
@@ -123,15 +129,23 @@ pub trait ReadSectionExt: BufRead {
         Ok(vec)
     }
 
-    fn read_export_section(&mut self) -> Result<()> {
-        read_vec!(self, {
-            self.read_name()?;
+    fn read_export_section(&mut self) -> Result<Vec<Export>> {
+        let vec = read_vec!(self, {
+            let name = self.read_name()?;
             let ty = self.read_byte().context("failed to read export type")?;
-            ensure!(ty <= 0x03, "invalid export type: {}", ty);
+            let id = self.read_u32().context("failed to read export id")?;
 
-            self.read_u32().context("failed to read export id")?
+            let desc = match ty {
+                0x00 => ExportDesc::Func(id),
+                0x01 => ExportDesc::Table(id),
+                0x02 => ExportDesc::Memory(id),
+                0x03 => ExportDesc::Global(id),
+                _ => bail!("invalid export type: {}", ty),
+            };
+
+            Export { name, desc }
         });
-        Ok(())
+        Ok(vec)
     }
 
     fn read_start_section(&mut self) -> Result<()> {

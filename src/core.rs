@@ -8,6 +8,7 @@ pub use value::*;
 pub struct Module {
     pub types: Vec<FuncType>,
     pub imports: Vec<Import>,
+    pub exports: Vec<Export>,                                                                          
     pub tables: Vec<TableType>,
     pub memories: Vec<MemoryType>,
     pub globals: Vec<Global>,
@@ -24,6 +25,18 @@ pub enum ImportDesc {
     Table(TableType),
     Memory(Limits),
     Global(GlobalType),
+}
+
+pub struct Export {
+    pub name: Name,
+    pub desc: ExportDesc,
+}
+
+pub enum ExportDesc {
+    Func(u32),
+    Table(u32),
+    Memory(u32),
+    Global(u32),
 }
 
 pub struct Global {
