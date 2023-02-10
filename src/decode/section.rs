@@ -1,5 +1,5 @@
 use super::prelude::*;
-use crate::core::{FuncType, Import, ImportDesc, Module, TableType, MemoryType};
+use crate::core::{FuncType, Global, Import, ImportDesc, MemoryType, Module, TableType};
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::{BufRead, Cursor};
 
@@ -19,9 +19,10 @@ pub trait ReadSectionExt: BufRead {
 
         let mut types = Vec::new();
         let mut imports = Vec::new();
-        let mut funcs_idx = Vec::new();
+        let mut _funcs_idx = Vec::new();
         let mut tables = Vec::new();
         let mut memories = Vec::new();
+        let mut globals = Vec::new();
 
         match idx {
             1 => {
@@ -31,7 +32,7 @@ pub trait ReadSectionExt: BufRead {
                 imports = cursor.read_import_section()?;
             }
             3 => {
-                funcs_idx = cursor.read_function_section()?;
+                _funcs_idx = cursor.read_function_section()?;
             }
             4 => {
                 tables = cursor.read_table_section()?;
@@ -39,7 +40,9 @@ pub trait ReadSectionExt: BufRead {
             5 => {
                 memories = cursor.read_memory_section()?;
             }
-            6 => cursor.read_global_section()?,
+            6 => {
+                globals = cursor.read_global_section()?;
+            }
             7 => cursor.read_export_section()?,
             8 => cursor.read_start_section()?,
             9 => cursor.read_element_section()?,
@@ -55,6 +58,7 @@ pub trait ReadSectionExt: BufRead {
             imports,
             tables,
             memories,
+            globals,
         })
     }
 
@@ -109,12 +113,14 @@ pub trait ReadSectionExt: BufRead {
         Ok(memories)
     }
 
-    fn read_global_section(&mut self) -> Result<()> {
-        read_vec!(self, {
-            self.read_global_type()?;
-            self.read_expr()?
+    fn read_global_section(&mut self) -> Result<Vec<Global>> {
+        let vec = read_vec!(self, {
+            Global {
+                global_type: self.read_global_type()?,
+                init: self.read_expr()?,
+            }
         });
-        Ok(())
+        Ok(vec)
     }
 
     fn read_export_section(&mut self) -> Result<()> {

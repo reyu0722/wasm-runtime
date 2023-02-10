@@ -1,5 +1,7 @@
+mod instructions;
 mod types;
 mod value;
+pub use instructions::*;
 pub use types::*;
 pub use value::*;
 
@@ -8,6 +10,7 @@ pub struct Module {
     pub imports: Vec<Import>,
     pub tables: Vec<TableType>,
     pub memories: Vec<MemoryType>,
+    pub globals: Vec<Global>,
 }
 
 pub struct Import {
@@ -21,4 +24,9 @@ pub enum ImportDesc {
     Table(TableType),
     Memory(Limits),
     Global(GlobalType),
+}
+
+pub struct Global {
+    pub global_type: GlobalType,
+    pub init: Expression,
 }

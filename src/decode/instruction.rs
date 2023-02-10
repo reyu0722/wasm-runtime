@@ -1,14 +1,16 @@
+use crate::core::Expression;
+
 use super::prelude::*;
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::BufRead;
 
 pub trait ReadInstructionExt: BufRead {
-    fn read_expr(&mut self) -> Result<()> {
+    fn read_expr(&mut self) -> Result<Expression> {
         while !self.read_if_equal(0x0b)? {
             self.read_instr().context("failed to read instruction")?;
         }
 
-        Ok(())
+        Ok(Expression {})
     }
 
     fn read_block_type(&mut self) -> Result<()> {
