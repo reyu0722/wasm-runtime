@@ -1,5 +1,5 @@
 use super::prelude::*;
-use crate::core::{BlockType, Expression};
+use crate::core::{BlockType, Expression, Instruction};
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::BufRead;
 
@@ -27,21 +27,27 @@ pub trait ReadInstructionExt: BufRead {
         }
     }
 
-    fn read_instr(&mut self) -> Result<()> {
+    fn read_instr(&mut self) -> Result<Instruction> {
         let opcode = self.read_byte().context("failed to read opcode")?;
-        match opcode {
+        let instr = match opcode {
             // control instructions
-            0x00 => (), // unreachable
-            0x01 => (), // nop
-            0x02 | 0x03 => {
-                // block, loop
+            0x00 => Instruction::Unreachable,
+            0x01 => Instruction::Nop,
+            0x02 => {
                 self.read_block_type()?;
                 while !self.read_if_equal(0x0b)? {
                     self.read_instr()?;
                 }
+                Instruction::Block
+            }
+            0x03 => {
+                self.read_block_type()?;
+                while !self.read_if_equal(0x0b)? {
+                    self.read_instr()?;
+                }
+                Instruction::Loop
             }
             0x04 => {
-                // if
                 self.read_block_type()?;
                 while !self.read_if_equal(0x0b)? {
                     if self.read_if_equal(0x05)? {
@@ -52,99 +58,109 @@ pub trait ReadInstructionExt: BufRead {
                     }
                     self.read_instr()?;
                 }
+                Instruction::If
             }
-            0x0c | 0x0d => {
-                // br, br_if
+            0x0c => {
                 self.read_u32()?;
+                Instruction::Br
+            }
+            0x0d => {
+                self.read_u32()?;
+                Instruction::BrIf
             }
             0x0e => {
-                // br_table
                 read_vec!(self, self.read_u32()?);
                 self.read_u32()?;
+                Instruction::BrTable
             }
-            0x0f => {
-                // return
-            }
+            0x0f => Instruction::Return,
             0x10 => {
-                // call
                 self.read_u32()?;
+                Instruction::Call
             }
             0x11 => {
-                // call_indirect
                 self.read_u32()?;
                 self.read_u32()?;
+                Instruction::CallIndirect
             }
 
             // reference instructions
             0xd0 => {
-                // ref.null
                 let ref_type = self.read_byte()?;
                 ensure!(
                     ref_type == 0x70 || ref_type == 0x6f,
                     "invalid ref.null type"
                 );
+
+                Instruction::RefNull
             }
-            0xd1 => {
-                // ref.is_null
-            }
+            0xd1 => Instruction::RefIsNull,
             0xd2 => {
-                // ref.func
                 self.read_u32()?;
+                Instruction::RefFunc
             }
 
             // parametric instructions
-            0x1a | 0x1b => {
-                // drop, select
-            }
+            0x1a => Instruction::Drop,
+            0x1b => Instruction::Select,
             0x1c => {
                 // select t*
                 read_vec!(self, self.read_value_type()?);
+                Instruction::Select
             }
 
             // variable instructions
             0x20 | 0x21 | 0x22 | 0x23 | 0x24 => {
                 // local.get, local.set, local.tee, global.get, global.set
                 self.read_u32()?;
+                Instruction::Variable
             }
 
             // table instructions
             0x25 | 0x26 => {
                 // table.get, table.set
                 self.read_u32()?;
+                Instruction::Table
             }
 
             // memory instructions
             idx if (0x28..=0x3e).contains(&idx) => {
                 self.read_u32()?;
                 self.read_u32()?;
+                Instruction::Memory
             }
             0x3f | 0x40 => {
                 // memory.size, memory.grow
                 self.read_u32()?;
+                Instruction::Memory
             }
 
             // numeric instructions
             0x41 => {
                 // i32.const
                 self.read_signed_leb128(32)?;
+                Instruction::Numeric
             }
             0x42 => {
                 // i64.const
                 self.read_signed_leb128(64)?;
+                Instruction::Numeric
             }
             0x43 => {
                 // f32.const
                 for _ in 0..4 {
                     self.read_byte()?;
                 }
+                Instruction::Numeric
             }
             0x44 => {
                 // f64.const
                 for _ in 0..8 {
                     self.read_byte()?;
                 }
+                Instruction::Numeric
             }
-            idx if (0x45..=0xc4).contains(&idx) => {}
+            idx if (0x45..=0xc4).contains(&idx) => Instruction::Numeric,
 
             0xfc => {
                 let kind = self.read_u32()?;
@@ -181,6 +197,7 @@ pub trait ReadInstructionExt: BufRead {
                     }
                     _ => bail!("invalid table instruction: {}", kind),
                 }
+                Instruction::Memory
             }
 
             // vector instructions
@@ -211,12 +228,13 @@ pub trait ReadInstructionExt: BufRead {
                     }
                     _ => {}
                 }
+                Instruction::Vector
             }
 
             _ => bail!("invalid opcode: {}", opcode),
-        }
+        };
 
-        Ok(())
+        Ok(instr)
     }
 }
 
