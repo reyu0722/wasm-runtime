@@ -23,7 +23,7 @@ pub trait ReadInstructionExt: BufRead {
         } else {
             let x = self.read_signed_leb128(33)?;
             ensure!(x >= 0, "invalid block type");
-            Ok(BlockType::Type(x.try_into()?))
+            Ok(BlockType::Type(u32::try_from(x)?.into()))
         }
     }
 
@@ -78,24 +78,24 @@ pub trait ReadInstructionExt: BufRead {
                     else_instructions,
                 }
             }
-            0x0c => Instruction::Br(self.read_u32()?),
-            0x0d => Instruction::BrIf(self.read_u32()?),
+            0x0c => Instruction::Br(self.read_u32()?.into()),
+            0x0d => Instruction::BrIf(self.read_u32()?.into()),
             0x0e => {
-                let vec = read_vec!(self, self.read_u32()?);
-                let i = self.read_u32()?;
+                let vec = read_vec!(self, self.read_u32()?.into());
+                let i = self.read_u32()?.into();
                 Instruction::BrTable(vec, i)
             }
             0x0f => Instruction::Return,
-            0x10 => Instruction::Call(self.read_u32()?),
+            0x10 => Instruction::Call(self.read_u32()?.into()),
             0x11 => Instruction::CallIndirect {
-                ty: self.read_u32()?,
-                table: self.read_u32()?,
+                ty: self.read_u32()?.into(),
+                table: self.read_u32()?.into(),
             },
 
             // reference instructions
             0xd0 => Instruction::RefNull(self.read_byte()?.try_into()?),
             0xd1 => Instruction::RefIsNull,
-            0xd2 => Instruction::RefFunc(self.read_u32()?),
+            0xd2 => Instruction::RefFunc(self.read_u32()?.into()),
 
             // parametric instructions
             0x1a => Instruction::Drop,
@@ -103,11 +103,11 @@ pub trait ReadInstructionExt: BufRead {
             0x1c => Instruction::SelectT(read_vec!(self, self.read_value_type()?)),
 
             // variable instructions
-            0x20 => Instruction::LocalGet(self.read_u32()?),
-            0x21 => Instruction::LocalSet(self.read_u32()?),
-            0x22 => Instruction::LocalTee(self.read_u32()?),
-            0x23 => Instruction::GlobalGet(self.read_u32()?),
-            0x24 => Instruction::GlobalSet(self.read_u32()?),
+            0x20 => Instruction::LocalGet(self.read_u32()?.into()),
+            0x21 => Instruction::LocalSet(self.read_u32()?.into()),
+            0x22 => Instruction::LocalTee(self.read_u32()?.into()),
+            0x23 => Instruction::GlobalGet(self.read_u32()?.into()),
+            0x24 => Instruction::GlobalSet(self.read_u32()?.into()),
 
             // table instructions
             0x25 | 0x26 => {

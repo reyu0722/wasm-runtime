@@ -75,6 +75,9 @@ pub enum ElementMode {
     Declarative,
 }
 
+pub struct Label;
+pub struct Local;
+
 pub struct Index<T> {
     pub index: u32,
     _phantom: PhantomData<fn() -> T>,

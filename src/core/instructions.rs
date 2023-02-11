@@ -1,9 +1,9 @@
-use super::{RefType, ValueType};
+use super::{Func, FuncType, Global, Index, Label, Local, RefType, Table, ValueType};
 
 pub struct Expression {}
 
 pub enum BlockType {
-    Type(u32),
+    Type(Index<FuncType>),
     ValType(Option<ValueType>),
 }
 
@@ -24,20 +24,20 @@ pub enum Instruction {
         instructions: Vec<Instruction>,
         else_instructions: Vec<Instruction>,
     },
-    Br(u32),
-    BrIf(u32),
-    BrTable(Vec<u32>, u32),
+    Br(Index<Label>),
+    BrIf(Index<Label>),
+    BrTable(Vec<Index<Label>>, Index<Label>),
     Return,
-    Call(u32),
+    Call(Index<Func>),
     CallIndirect {
-        ty: u32,
-        table: u32,
+        ty: Index<FuncType>,
+        table: Index<Table>,
     },
 
     // reference instructions
     RefNull(RefType),
     RefIsNull,
-    RefFunc(u32),
+    RefFunc(Index<Func>),
 
     // parametric instructions
     Drop,
@@ -45,11 +45,11 @@ pub enum Instruction {
     SelectT(Vec<ValueType>),
 
     // variable instructions
-    LocalGet(u32),
-    LocalSet(u32),
-    LocalTee(u32),
-    GlobalGet(u32),
-    GlobalSet(u32),
+    LocalGet(Index<Local>),
+    LocalSet(Index<Local>),
+    LocalTee(Index<Local>),
+    GlobalGet(Index<Global>),
+    GlobalSet(Index<Global>),
 
     // table instructions
     Table,
