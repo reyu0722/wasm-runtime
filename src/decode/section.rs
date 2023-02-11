@@ -1,7 +1,7 @@
 use super::prelude::*;
 use crate::core::{
     Element, ElementMode, Export, ExportDesc, Expression, Func, FuncType, Global, Import,
-    ImportDesc, MemoryType, Module, RefType, TableType,
+    ImportDesc, Index, Memory, Module, RefType, Table,
 };
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::{BufRead, Cursor};
@@ -79,7 +79,7 @@ pub trait ReadSectionExt: BufRead {
             let desc = match desc_type {
                 0x00 => {
                     let func = self.read_u32().context("failed to read type id")?;
-                    ImportDesc::Func(func)
+                    ImportDesc::Func(func.into())
                 }
                 0x01 => {
                     let table = self.read_table_type()?;
@@ -102,18 +102,18 @@ pub trait ReadSectionExt: BufRead {
         Ok(vec)
     }
 
-    fn read_function_section(&mut self) -> Result<Vec<u32>> {
-        let vec = read_vec!(self, self.read_u32()?);
+    fn read_function_section(&mut self) -> Result<Vec<Index<FuncType>>> {
+        let vec = read_vec!(self, self.read_u32()?.into());
         Ok(vec)
     }
 
-    fn read_table_section(&mut self) -> Result<Vec<TableType>> {
-        let table_type = read_vec!(self, self.read_table_type()?);
+    fn read_table_section(&mut self) -> Result<Vec<Table>> {
+        let table_type = read_vec!(self, Table(self.read_table_type()?));
         Ok(table_type)
     }
 
-    fn read_memory_section(&mut self) -> Result<Vec<MemoryType>> {
-        let memories = read_vec!(self, self.read_limits()?);
+    fn read_memory_section(&mut self) -> Result<Vec<Memory>> {
+        let memories = read_vec!(self, Memory(self.read_limits()?));
         Ok(memories)
     }
 
@@ -134,10 +134,10 @@ pub trait ReadSectionExt: BufRead {
             let id = self.read_u32().context("failed to read export id")?;
 
             let desc = match ty {
-                0x00 => ExportDesc::Func(id),
-                0x01 => ExportDesc::Table(id),
-                0x02 => ExportDesc::Memory(id),
-                0x03 => ExportDesc::Global(id),
+                0x00 => ExportDesc::Func(id.into()),
+                0x01 => ExportDesc::Table(id.into()),
+                0x02 => ExportDesc::Memory(id.into()),
+                0x03 => ExportDesc::Global(id.into()),
                 _ => bail!("invalid export type: {}", ty),
             };
 
@@ -146,12 +146,12 @@ pub trait ReadSectionExt: BufRead {
         Ok(vec)
     }
 
-    fn read_start_section(&mut self) -> Result<u32> {
+    fn read_start_section(&mut self) -> Result<Index<Func>> {
         let func_id = self
             .read_u32()
             .context("failed to read start section func id")?;
 
-        Ok(func_id)
+        Ok(func_id.into())
     }
 
     fn read_element_section(&mut self) -> Result<Vec<Element>> {
@@ -166,7 +166,10 @@ pub trait ReadSectionExt: BufRead {
                     Element {
                         ty: RefType::Funcref,
                         init: Vec::new(),
-                        mode: ElementMode::Active { table: 0, offset },
+                        mode: ElementMode::Active {
+                            table: 0.into(),
+                            offset,
+                        },
                     }
                 }
                 1 => {
@@ -180,7 +183,7 @@ pub trait ReadSectionExt: BufRead {
                     }
                 }
                 2 => {
-                    let table = self.read_u32()?;
+                    let table = self.read_u32()?.into();
                     let offset = self.read_expr()?;
                     self.read_and_ensure(0x00)?;
                     let _y = read_vec!(self, self.read_u32()?);
@@ -208,7 +211,10 @@ pub trait ReadSectionExt: BufRead {
                     Element {
                         ty: RefType::Funcref,
                         init: Vec::new(),
-                        mode: ElementMode::Active { table: 0, offset },
+                        mode: ElementMode::Active {
+                            table: 0.into(),
+                            offset,
+                        },
                     }
                 }
                 5 => {
@@ -222,7 +228,7 @@ pub trait ReadSectionExt: BufRead {
                     }
                 }
                 6 => {
-                    let table = self.read_u32()?;
+                    let table = self.read_u32()?.into();
                     let offset = self.read_expr()?;
                     let ty = self.read_byte()?.try_into()?;
                     let _y = read_vec!(self, self.read_expr()?);
