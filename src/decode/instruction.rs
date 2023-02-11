@@ -1,6 +1,5 @@
-use crate::core::Expression;
-
 use super::prelude::*;
+use crate::core::{BlockType, Expression};
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::BufRead;
 
@@ -13,17 +12,18 @@ pub trait ReadInstructionExt: BufRead {
         Ok(Expression {})
     }
 
-    fn read_block_type(&mut self) -> Result<()> {
+    fn read_block_type(&mut self) -> Result<BlockType> {
         // TODO: fix
         let mut slice = &self.fill_buf()?[0..1];
-        if slice.read_value_type().is_ok() {
+        if let Ok(value) = slice.read_value_type() {
             self.consume(1);
-            Ok(())
+            Ok(BlockType::ValType(Some(value)))
         } else if self.read_if_equal(0x40)? {
-            Ok(()) // empty
+            Ok(BlockType::ValType(None))
         } else {
-            self.read_signed_leb128(33)?;
-            Ok(())
+            let x = self.read_signed_leb128(33)?;
+            ensure!(x >= 0, "invalid block type");
+            Ok(BlockType::Type(x.try_into()?))
         }
     }
 
