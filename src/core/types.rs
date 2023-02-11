@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum NumType {
     I32,
     I64,
@@ -19,6 +20,7 @@ impl NumType {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum VecType {
     V128,
 }
@@ -32,6 +34,7 @@ impl VecType {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum RefType {
     Funcref,
     Externref,
@@ -47,6 +50,7 @@ impl RefType {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ValueType {
     Num(NumType),
     Vec(VecType),

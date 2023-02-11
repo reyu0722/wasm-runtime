@@ -1,6 +1,7 @@
 use super::prelude::*;
 use crate::core::{
-    Export, ExportDesc, FuncType, Global, Import, ImportDesc, MemoryType, Module, TableType,
+    Export, ExportDesc, Expression, Func, FuncType, Global, Import, ImportDesc, MemoryType, Module,
+    TableType,
 };
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::{BufRead, Cursor};
@@ -27,7 +28,15 @@ pub trait ReadSectionExt: BufRead {
                 module.imports = cursor.read_import_section()?;
             }
             3 => {
-                cursor.read_function_section()?;
+                module.funcs = cursor
+                    .read_function_section()?
+                    .into_iter()
+                    .map(|id| Func {
+                        type_id: id,
+                        locals: vec![],
+                        body: Expression {},
+                    })
+                    .collect();
             }
             4 => {
                 module.tables = cursor.read_table_section()?;
@@ -43,7 +52,7 @@ pub trait ReadSectionExt: BufRead {
             }
             8 => cursor.read_start_section()?,
             9 => cursor.read_element_section()?,
-            10 => cursor.read_code_section()?,
+            10 => cursor.read_code_section(module)?,
             11 => cursor.read_data_section()?,
             12 => cursor.read_data_count_section()?,
             _ => bail!("invalid section id: {}", idx),
@@ -200,19 +209,34 @@ pub trait ReadSectionExt: BufRead {
         Ok(())
     }
 
-    fn read_code_section(&mut self) -> Result<()> {
-        read_vec!(self, {
+    fn read_code_section(&mut self, module: &mut Module) -> Result<()> {
+        let vec = read_vec!(self, {
             // TODO: check size
             self.read_u32()
                 .context("failed to read code section body size")?;
 
-            read_vec!(self, {
-                self.read_u32()?;
-                self.read_value_type()?;
-            });
+            let types = read_vec!(self, {
+                let n = self.read_u32()?;
+                let ty = self.read_value_type()?;
+                (n, ty)
+            })
+            .into_iter()
+            .flat_map(|(n, ty)| std::iter::repeat(ty).take(n as usize))
+            .collect();
 
-            self.read_expr()?
+            let expr = self.read_expr()?;
+            (types, expr)
         });
+
+        ensure!(
+            vec.len() == module.funcs.len(),
+            "code section size mismatch"
+        );
+
+        for (i, (locals, body)) in vec.into_iter().enumerate() {
+            module.funcs[i].locals = locals;
+            module.funcs[i].body = body;
+        }
 
         Ok(())
     }

@@ -13,6 +13,7 @@ pub struct Module {
     pub tables: Vec<TableType>,
     pub memories: Vec<MemoryType>,
     pub globals: Vec<Global>,
+    pub funcs: Vec<Func>,
 }
 
 pub struct Import {
@@ -43,4 +44,10 @@ pub enum ExportDesc {
 pub struct Global {
     pub global_type: GlobalType,
     pub init: Expression,
+}
+
+pub struct Func {
+    pub type_id: u32,
+    pub locals: Vec<ValueType>,
+    pub body: Expression,
 }
