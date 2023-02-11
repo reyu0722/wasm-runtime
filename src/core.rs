@@ -14,6 +14,7 @@ pub struct Module {
     pub memories: Vec<MemoryType>,
     pub globals: Vec<Global>,
     pub funcs: Vec<Func>,
+    pub start: Option<u32>,
 }
 
 pub struct Import {

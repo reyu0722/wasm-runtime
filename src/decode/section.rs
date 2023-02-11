@@ -50,7 +50,9 @@ pub trait ReadSectionExt: BufRead {
             7 => {
                 module.exports = cursor.read_export_section()?;
             }
-            8 => cursor.read_start_section()?,
+            8 => {
+                module.start = Some(cursor.read_start_section()?);
+            }
             9 => cursor.read_element_section()?,
             10 => cursor.read_code_section(module)?,
             11 => cursor.read_data_section()?,
@@ -142,11 +144,11 @@ pub trait ReadSectionExt: BufRead {
         Ok(vec)
     }
 
-    fn read_start_section(&mut self) -> Result<()> {
-        self.read_u32()
+    fn read_start_section(&mut self) -> Result<u32> {
+        let func_id = self.read_u32()
             .context("failed to read start section func id")?;
 
-        Ok(())
+        Ok(func_id)
     }
 
     fn read_element_section(&mut self) -> Result<()> {
