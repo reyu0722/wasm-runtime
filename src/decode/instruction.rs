@@ -103,11 +103,11 @@ pub trait ReadInstructionExt: BufRead {
             0x1c => Instruction::SelectT(read_vec!(self, self.read_value_type()?)),
 
             // variable instructions
-            0x20 | 0x21 | 0x22 | 0x23 | 0x24 => {
-                // local.get, local.set, local.tee, global.get, global.set
-                self.read_u32()?;
-                Instruction::Variable
-            }
+            0x20 => Instruction::LocalGet(self.read_u32()?),
+            0x21 => Instruction::LocalSet(self.read_u32()?),
+            0x22 => Instruction::LocalTee(self.read_u32()?),
+            0x23 => Instruction::GlobalGet(self.read_u32()?),
+            0x24 => Instruction::GlobalSet(self.read_u32()?),
 
             // table instructions
             0x25 | 0x26 => {

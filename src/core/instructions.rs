@@ -45,7 +45,11 @@ pub enum Instruction {
     SelectT(Vec<ValueType>),
 
     // variable instructions
-    Variable,
+    LocalGet(u32),
+    LocalSet(u32),
+    LocalTee(u32),
+    GlobalGet(u32),
+    GlobalSet(u32),
 
     // table instructions
     Table,
