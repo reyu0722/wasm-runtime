@@ -15,6 +15,7 @@ pub struct Module {
     pub globals: Vec<Global>,
     pub funcs: Vec<Func>,
     pub start: Option<u32>,
+    pub elements: Vec<Element>,
 }
 
 pub struct Import {
@@ -51,4 +52,16 @@ pub struct Func {
     pub type_id: u32,
     pub locals: Vec<ValueType>,
     pub body: Expression,
+}
+
+pub struct Element {
+    pub ty: RefType,
+    pub init: Vec<Expression>,
+    pub mode: ElementMode,
+}
+
+pub enum ElementMode {
+    Active { table: u32, offset: Expression },
+    Passive,
+    Declarative,
 }

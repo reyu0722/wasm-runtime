@@ -1,7 +1,7 @@
 use super::prelude::*;
 use crate::core::{
-    Export, ExportDesc, Expression, Func, FuncType, Global, Import, ImportDesc, MemoryType, Module,
-    TableType,
+    Element, ElementMode, Export, ExportDesc, Expression, Func, FuncType, Global, Import,
+    ImportDesc, MemoryType, Module, RefType, TableType,
 };
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::{BufRead, Cursor};
@@ -53,7 +53,7 @@ pub trait ReadSectionExt: BufRead {
             8 => {
                 module.start = Some(cursor.read_start_section()?);
             }
-            9 => cursor.read_element_section()?,
+            9 => {module.elements = cursor.read_element_section()?;},
             10 => cursor.read_code_section(module)?,
             11 => cursor.read_data_section()?,
             12 => cursor.read_data_count_section()?,
@@ -145,56 +145,99 @@ pub trait ReadSectionExt: BufRead {
     }
 
     fn read_start_section(&mut self) -> Result<u32> {
-        let func_id = self.read_u32()
+        let func_id = self
+            .read_u32()
             .context("failed to read start section func id")?;
 
         Ok(func_id)
     }
 
-    fn read_element_section(&mut self) -> Result<()> {
-        read_vec!(self, {
+    fn read_element_section(&mut self) -> Result<Vec<Element>> {
+        let elements = read_vec!(self, {
             let ty = self.read_u32()?;
 
             match ty {
                 0 => {
-                    self.read_expr()?;
-                    read_vec!(self, self.read_u32()?);
+                    let offset = self.read_expr()?;
+                    let _y = read_vec!(self, self.read_u32()?);
+
+                    Element {
+                        ty: RefType::Funcref,
+                        init: Vec::new(),
+                        mode: ElementMode::Active { table: 0, offset },
+                    }
                 }
                 1 => {
                     self.read_and_ensure(0x00)?;
-                    read_vec!(self, self.read_u32()?);
+                    let _y = read_vec!(self, self.read_u32()?);
+
+                    Element {
+                        ty: RefType::Funcref,
+                        init: Vec::new(),
+                        mode: ElementMode::Passive,
+                    }
                 }
                 2 => {
-                    self.read_u32()?;
-                    self.read_expr()?;
+                    let table = self.read_u32()?;
+                    let offset = self.read_expr()?;
                     self.read_and_ensure(0x00)?;
-                    read_vec!(self, self.read_u32()?);
+                    let _y = read_vec!(self, self.read_u32()?);
+
+                    Element {
+                        ty: RefType::Funcref,
+                        init: Vec::new(),
+                        mode: ElementMode::Active { table, offset },
+                    }
                 }
                 3 => {
                     self.read_and_ensure(0x00)?;
-                    read_vec!(self, self.read_u32()?);
+                    let _y = read_vec!(self, self.read_u32()?);
+
+                    Element {
+                        ty: RefType::Funcref,
+                        init: Vec::new(),
+                        mode: ElementMode::Declarative,
+                    }
                 }
                 4 => {
-                    self.read_expr()?;
-                    read_vec!(self, self.read_expr()?);
+                    let offset = self.read_expr()?;
+                    let _y = read_vec!(self, self.read_expr()?);
+
+                    Element {
+                        ty: RefType::Funcref,
+                        init: Vec::new(),
+                        mode: ElementMode::Active { table: 0, offset },
+                    }
                 }
                 5 => {
                     let ref_type = self.read_byte()?;
-                    ensure!(
-                        ref_type == 0x70 || ref_type == 0x6f,
-                        "invalid element section type"
-                    );
-                    read_vec!(self, self.read_expr()?);
+                    let _y = read_vec!(self, self.read_expr()?);
+
+                    Element {
+                        ty: match ref_type {
+                            0x70 => RefType::Funcref,
+                            0x6f => RefType::Externref,
+                            _ => bail!("invalid element section type"),
+                        },
+                        init: Vec::new(),
+                        mode: ElementMode::Passive,
+                    }
                 }
                 6 => {
-                    self.read_u32()?;
-                    self.read_expr()?;
+                    let table = self.read_u32()?;
+                    let offset = self.read_expr()?;
                     let ref_type = self.read_byte()?;
-                    ensure!(
-                        ref_type == 0x70 || ref_type == 0x6f,
-                        "invalid element section type"
-                    );
-                    read_vec!(self, self.read_expr()?);
+                    let _y = read_vec!(self, self.read_expr()?);
+
+                    Element {
+                        ty: match ref_type {
+                            0x70 => RefType::Funcref,
+                            0x6f => RefType::Externref,
+                            _ => bail!("invalid element section type"),
+                        },
+                        init: Vec::new(),
+                        mode: ElementMode::Active { table, offset },
+                    }
                 }
                 7 => {
                     let ref_type = self.read_byte()?;
@@ -202,13 +245,23 @@ pub trait ReadSectionExt: BufRead {
                         ref_type == 0x70 || ref_type == 0x6f,
                         "invalid element section type"
                     );
-                    read_vec!(self, self.read_expr()?);
+                    let _y = read_vec!(self, self.read_expr()?);
+
+                    Element {
+                        ty: match ref_type {
+                            0x70 => RefType::Funcref,
+                            0x6f => RefType::Externref,
+                            _ => bail!("invalid element section type"),
+                        },
+                        init: Vec::new(),
+                        mode: ElementMode::Declarative,
+                    }
                 }
                 _ => bail!("invalid element section type: {}", ty),
             }
         });
 
-        Ok(())
+        Ok(elements)
     }
 
     fn read_code_section(&mut self, module: &mut Module) -> Result<()> {
