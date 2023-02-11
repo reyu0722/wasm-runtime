@@ -34,55 +34,63 @@ pub trait ReadInstructionExt: BufRead {
             0x00 => Instruction::Unreachable,
             0x01 => Instruction::Nop,
             0x02 => {
-                self.read_block_type()?;
+                let block_type = self.read_block_type()?;
+
+                let mut instructions = Vec::new();
                 while !self.read_if_equal(0x0b)? {
-                    self.read_instr()?;
+                    instructions.push(self.read_instr()?);
                 }
-                Instruction::Block
+                Instruction::Block {
+                    block_type,
+                    instructions,
+                }
             }
             0x03 => {
-                self.read_block_type()?;
+                let block_type = self.read_block_type()?;
+
+                let mut instructions = Vec::new();
                 while !self.read_if_equal(0x0b)? {
-                    self.read_instr()?;
+                    instructions.push(self.read_instr()?);
                 }
-                Instruction::Loop
+                Instruction::Loop {
+                    block_type,
+                    instructions,
+                }
             }
             0x04 => {
-                self.read_block_type()?;
+                let block_type = self.read_block_type()?;
+
+                let mut instructions = Vec::new();
+                let mut else_instructions = Vec::new();
+
                 while !self.read_if_equal(0x0b)? {
                     if self.read_if_equal(0x05)? {
                         while !self.read_if_equal(0x0b)? {
-                            self.read_instr()?;
+                            else_instructions.push(self.read_instr()?);
                         }
                         break;
                     }
-                    self.read_instr()?;
+                    instructions.push(self.read_instr()?);
                 }
-                Instruction::If
+                Instruction::If {
+                    block_type,
+                    instructions,
+                    else_instructions,
+                }
             }
-            0x0c => {
-                self.read_u32()?;
-                Instruction::Br
-            }
-            0x0d => {
-                self.read_u32()?;
-                Instruction::BrIf
-            }
+            0x0c => Instruction::Br(self.read_u32()?),
+            0x0d => Instruction::BrIf(self.read_u32()?),
             0x0e => {
-                read_vec!(self, self.read_u32()?);
-                self.read_u32()?;
-                Instruction::BrTable
+                let vec = read_vec!(self, self.read_u32()?);
+                let i = self.read_u32()?;
+                Instruction::BrTable(vec, i)
             }
             0x0f => Instruction::Return,
-            0x10 => {
-                self.read_u32()?;
-                Instruction::Call
-            }
-            0x11 => {
-                self.read_u32()?;
-                self.read_u32()?;
-                Instruction::CallIndirect
-            }
+            0x10 => Instruction::Call(self.read_u32()?),
+            0x11 => Instruction::CallIndirect {
+                ty: self.read_u32()?,
+                table: self.read_u32()?,
+            },
 
             // reference instructions
             0xd0 => {

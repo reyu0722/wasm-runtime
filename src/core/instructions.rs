@@ -11,16 +11,28 @@ pub enum Instruction {
     // control instructions
     Unreachable,
     Nop,
-    Block,
-    Loop,
-    If,
-    IfElse,
-    Br,
-    BrIf,
-    BrTable,
+    Block {
+        block_type: BlockType,
+        instructions: Vec<Instruction>,
+    },
+    Loop {
+        block_type: BlockType,
+        instructions: Vec<Instruction>,
+    },
+    If {
+        block_type: BlockType,
+        instructions: Vec<Instruction>,
+        else_instructions: Vec<Instruction>,
+    },
+    Br(u32),
+    BrIf(u32),
+    BrTable(Vec<u32>, u32),
     Return,
-    Call,
-    CallIndirect,
+    Call(u32),
+    CallIndirect {
+        ty: u32,
+        table: u32,
+    },
 
     // reference instructions
     RefNull,
