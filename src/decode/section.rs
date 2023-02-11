@@ -6,7 +6,7 @@ use anyhow::{bail, ensure, Context as _, Result};
 use std::io::{BufRead, Cursor};
 
 pub trait ReadSectionExt: BufRead {
-    fn read_section(&mut self) -> Result<Module> {
+    fn read_section(&mut self, module: &mut Module) -> Result<()> {
         let idx = self
             .read_unsigned_leb128(8)
             .context("failed to read section index")?;
@@ -19,35 +19,27 @@ pub trait ReadSectionExt: BufRead {
             .context("failed to read section content")?;
         let mut cursor = Cursor::new(cont);
 
-        let mut types = Vec::new();
-        let mut imports = Vec::new();
-        let mut _funcs_idx = Vec::new();
-        let mut tables = Vec::new();
-        let mut memories = Vec::new();
-        let mut globals = Vec::new();
-        let mut exports = Vec::new();
-
         match idx {
             1 => {
-                types = cursor.read_type_section()?;
+                module.types = cursor.read_type_section()?;
             }
             2 => {
-                imports = cursor.read_import_section()?;
+                module.imports = cursor.read_import_section()?;
             }
             3 => {
-                _funcs_idx = cursor.read_function_section()?;
+                cursor.read_function_section()?;
             }
             4 => {
-                tables = cursor.read_table_section()?;
+                module.tables = cursor.read_table_section()?;
             }
             5 => {
-                memories = cursor.read_memory_section()?;
+                module.memories = cursor.read_memory_section()?;
             }
             6 => {
-                globals = cursor.read_global_section()?;
+                module.globals = cursor.read_global_section()?;
             }
             7 => {
-                exports = cursor.read_export_section()?;
+                module.exports = cursor.read_export_section()?;
             }
             8 => cursor.read_start_section()?,
             9 => cursor.read_element_section()?,
@@ -58,14 +50,7 @@ pub trait ReadSectionExt: BufRead {
         };
 
         ensure!(!cursor.has_data_left()?, "invalid section size");
-        Ok(Module {
-            types,
-            imports,
-            exports,
-            tables,
-            memories,
-            globals,
-        })
+        Ok(())
     }
 
     fn read_type_section(&mut self) -> Result<Vec<FuncType>> {

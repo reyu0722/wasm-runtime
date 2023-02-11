@@ -1,4 +1,5 @@
 use self::prelude::*;
+use crate::core::Module;
 use anyhow::{ensure, Result};
 use std::io::BufRead;
 
@@ -19,8 +20,10 @@ pub fn decode(buf: &mut impl BufRead) -> Result<()> {
     );
     ensure!(header[4..8] == [0x01, 0x00, 0x00, 0x00], "invalid version");
 
+    let mut module = Module::default();
+
     while buf.has_data_left()? {
-        buf.read_section()?;
+        buf.read_section(&mut module)?;
     }
     Ok(())
 }

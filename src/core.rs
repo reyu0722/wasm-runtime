@@ -5,10 +5,11 @@ pub use instructions::*;
 pub use types::*;
 pub use value::*;
 
+#[derive(Default)]
 pub struct Module {
     pub types: Vec<FuncType>,
     pub imports: Vec<Import>,
-    pub exports: Vec<Export>,                                                                          
+    pub exports: Vec<Export>,
     pub tables: Vec<TableType>,
     pub memories: Vec<MemoryType>,
     pub globals: Vec<Global>,
