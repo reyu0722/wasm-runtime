@@ -1,7 +1,7 @@
 use super::prelude::*;
 use crate::core::{
-    Element, ElementMode, Export, ExportDesc, Expression, Func, FuncType, Global, Import,
-    ImportDesc, Index, Memory, Module, RefType, Table,
+    Element, ElementMode, Export, ExportDesc, Expression, Func, FuncIdx, FuncType, Global, Idx,
+    Import, ImportDesc, Memory, Module, RefType, Table, TypeIdx,
 };
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::{BufRead, Cursor};
@@ -102,7 +102,7 @@ pub trait ReadSectionExt: BufRead {
         Ok(vec)
     }
 
-    fn read_function_section(&mut self) -> Result<Vec<Index<FuncType>>> {
+    fn read_function_section(&mut self) -> Result<Vec<Idx<TypeIdx>>> {
         let vec = read_vec!(self, self.read_u32()?.into());
         Ok(vec)
     }
@@ -146,7 +146,7 @@ pub trait ReadSectionExt: BufRead {
         Ok(vec)
     }
 
-    fn read_start_section(&mut self) -> Result<Index<Func>> {
+    fn read_start_section(&mut self) -> Result<Idx<FuncIdx>> {
         let func_id = self
             .read_u32()
             .context("failed to read start section func id")?;

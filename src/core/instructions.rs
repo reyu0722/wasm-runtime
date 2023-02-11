@@ -1,9 +1,11 @@
-use super::{Func, FuncType, Global, Index, Label, Local, RefType, Table, ValueType};
+use super::{
+    FuncIdx, FuncType, GlobalIdx, Idx, LabelIdx, LocalIdx, RefType, TableIdx, TypeIdx, ValueType,
+};
 
 pub struct Expression {}
 
 pub enum BlockType {
-    Type(Index<FuncType>),
+    Type(Idx<FuncType>),
     ValType(Option<ValueType>),
 }
 
@@ -24,20 +26,20 @@ pub enum Instruction {
         instructions: Vec<Instruction>,
         else_instructions: Vec<Instruction>,
     },
-    Br(Index<Label>),
-    BrIf(Index<Label>),
-    BrTable(Vec<Index<Label>>, Index<Label>),
+    Br(Idx<LabelIdx>),
+    BrIf(Idx<LabelIdx>),
+    BrTable(Vec<Idx<LabelIdx>>, Idx<LabelIdx>),
     Return,
-    Call(Index<Func>),
+    Call(Idx<FuncIdx>),
     CallIndirect {
-        ty: Index<FuncType>,
-        table: Index<Table>,
+        ty: Idx<TypeIdx>,
+        table: Idx<TableIdx>,
     },
 
     // reference instructions
     RefNull(RefType),
     RefIsNull,
-    RefFunc(Index<Func>),
+    RefFunc(Idx<FuncIdx>),
 
     // parametric instructions
     Drop,
@@ -45,11 +47,11 @@ pub enum Instruction {
     SelectT(Vec<ValueType>),
 
     // variable instructions
-    LocalGet(Index<Local>),
-    LocalSet(Index<Local>),
-    LocalTee(Index<Local>),
-    GlobalGet(Index<Global>),
-    GlobalSet(Index<Global>),
+    LocalGet(Idx<LocalIdx>),
+    LocalSet(Idx<LocalIdx>),
+    LocalTee(Idx<LocalIdx>),
+    GlobalGet(Idx<GlobalIdx>),
+    GlobalSet(Idx<GlobalIdx>),
 
     // table instructions
     Table,

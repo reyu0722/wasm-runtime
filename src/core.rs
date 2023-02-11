@@ -1,9 +1,9 @@
-use std::marker::PhantomData;
-
+mod index;
 mod instructions;
 mod types;
 mod value;
 
+pub use index::*;
 pub use instructions::*;
 pub use types::*;
 pub use value::*;
@@ -17,7 +17,7 @@ pub struct Module {
     pub memories: Vec<Memory>,
     pub globals: Vec<Global>,
     pub funcs: Vec<Func>,
-    pub start: Option<Index<Func>>,
+    pub start: Option<Idx<FuncIdx>>,
     pub elements: Vec<Element>,
 }
 
@@ -28,7 +28,7 @@ pub struct Import {
 }
 
 pub enum ImportDesc {
-    Func(Index<Func>),
+    Func(Idx<FuncIdx>),
     Table(TableType),
     Memory(Limits),
     Global(GlobalType),
@@ -43,10 +43,10 @@ pub struct Table(pub TableType);
 pub struct Memory(pub MemoryType);
 
 pub enum ExportDesc {
-    Func(Index<Func>),
-    Table(Index<Table>),
-    Memory(Index<Memory>),
-    Global(Index<Global>),
+    Func(Idx<FuncIdx>),
+    Table(Idx<TableIdx>),
+    Memory(Idx<MemIdx>),
+    Global(Idx<GlobalIdx>),
 }
 
 pub struct Global {
@@ -55,7 +55,7 @@ pub struct Global {
 }
 
 pub struct Func {
-    pub type_id: Index<FuncType>,
+    pub type_id: Idx<TypeIdx>,
     pub locals: Vec<ValueType>,
     pub body: Expression,
 }
@@ -68,32 +68,9 @@ pub struct Element {
 
 pub enum ElementMode {
     Active {
-        table: Index<Table>,
+        table: Idx<TableIdx>,
         offset: Expression,
     },
     Passive,
     Declarative,
-}
-
-pub struct Label;
-pub struct Local;
-
-pub struct Index<T> {
-    pub index: u32,
-    _phantom: PhantomData<fn() -> T>,
-}
-
-impl<T> Index<T> {
-    pub fn new(index: u32) -> Self {
-        Self {
-            index,
-            _phantom: PhantomData,
-        }
-    }
-}
-
-impl<T> From<u32> for Index<T> {
-    fn from(index: u32) -> Self {
-        Self::new(index)
-    }
 }
