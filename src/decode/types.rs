@@ -65,8 +65,10 @@ pub trait ReadTypeExt: BufRead {
     }
 
     fn read_table_type(&mut self) -> Result<TableType> {
-        let b = self.read_byte().context("failed to read reftype")?;
-        let reftype = RefType::from_byte(b)?;
+        let reftype = self
+            .read_byte()
+            .context("failed to read reftype")?
+            .try_into()?;
 
         let limits = self.read_limits()?;
         Ok(TableType {
@@ -76,8 +78,10 @@ pub trait ReadTypeExt: BufRead {
     }
 
     fn read_global_type(&mut self) -> Result<GlobalType> {
-        let b = self.read_byte().context("failed to read valtype")?;
-        let value_type = ValueType::from_byte(b)?;
+        let value_type = self
+            .read_byte()
+            .context("failed to read valtype")?
+            .try_into()?;
 
         let mutability = self.read_byte().context("failed to read mutability")?;
         ensure!(mutability <= 1, "invalid mutability: {}", mutability);

@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Error, Result};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NumType {
@@ -8,8 +8,10 @@ pub enum NumType {
     F64,
 }
 
-impl NumType {
-    pub fn from_byte(b: u8) -> Result<Self> {
+impl TryFrom<u8> for NumType {
+    type Error = Error;
+
+    fn try_from(b: u8) -> Result<Self> {
         match b {
             0x7f => Ok(NumType::I32),
             0x7e => Ok(NumType::I64),
@@ -25,8 +27,9 @@ pub enum VecType {
     V128,
 }
 
-impl VecType {
-    pub fn from_byte(b: u8) -> Result<Self> {
+impl TryFrom<u8> for VecType {
+    type Error = Error;
+    fn try_from(b: u8) -> Result<Self> {
         match b {
             0x7b => Ok(VecType::V128),
             _ => bail!("invalid vec type: {}", b),
@@ -40,8 +43,9 @@ pub enum RefType {
     Externref,
 }
 
-impl RefType {
-    pub fn from_byte(b: u8) -> Result<Self> {
+impl TryFrom<u8> for RefType {
+    type Error = Error;
+    fn try_from(b: u8) -> Result<Self> {
         match b {
             0x70 => Ok(RefType::Funcref),
             0x6f => Ok(RefType::Externref),
@@ -57,12 +61,13 @@ pub enum ValueType {
     Ref(RefType),
 }
 
-impl ValueType {
-    pub fn from_byte(b: u8) -> Result<Self> {
-        NumType::from_byte(b)
+impl TryFrom<u8> for ValueType {
+    type Error = Error;
+    fn try_from(b: u8) -> Result<Self> {
+        NumType::try_from(b)
             .map(ValueType::Num)
-            .or_else(|_| VecType::from_byte(b).map(ValueType::Vec))
-            .or_else(|_| RefType::from_byte(b).map(ValueType::Ref))
+            .or_else(|_| VecType::try_from(b).map(ValueType::Vec))
+            .or_else(|_| RefType::try_from(b).map(ValueType::Ref))
     }
 }
 
