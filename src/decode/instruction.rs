@@ -93,29 +93,14 @@ pub trait ReadInstructionExt: BufRead {
             },
 
             // reference instructions
-            0xd0 => {
-                let ref_type = self.read_byte()?;
-                ensure!(
-                    ref_type == 0x70 || ref_type == 0x6f,
-                    "invalid ref.null type"
-                );
-
-                Instruction::RefNull
-            }
+            0xd0 => Instruction::RefNull(self.read_byte()?.try_into()?),
             0xd1 => Instruction::RefIsNull,
-            0xd2 => {
-                self.read_u32()?;
-                Instruction::RefFunc
-            }
+            0xd2 => Instruction::RefFunc(self.read_u32()?),
 
             // parametric instructions
             0x1a => Instruction::Drop,
             0x1b => Instruction::Select,
-            0x1c => {
-                // select t*
-                read_vec!(self, self.read_value_type()?);
-                Instruction::Select
-            }
+            0x1c => Instruction::SelectT(read_vec!(self, self.read_value_type()?)),
 
             // variable instructions
             0x20 | 0x21 | 0x22 | 0x23 | 0x24 => {

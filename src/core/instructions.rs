@@ -1,4 +1,4 @@
-use super::ValueType;
+use super::{RefType, ValueType};
 
 pub struct Expression {}
 
@@ -35,13 +35,14 @@ pub enum Instruction {
     },
 
     // reference instructions
-    RefNull,
+    RefNull(RefType),
     RefIsNull,
-    RefFunc,
+    RefFunc(u32),
 
     // parametric instructions
     Drop,
     Select,
+    SelectT(Vec<ValueType>),
 
     // variable instructions
     Variable,
