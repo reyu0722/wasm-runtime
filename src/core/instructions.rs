@@ -1,5 +1,6 @@
 use super::{
-    FuncIdx, FuncType, GlobalIdx, Idx, LabelIdx, LocalIdx, RefType, TableIdx, TypeIdx, ValueType,
+    DataIdx, FuncIdx, FuncType, GlobalIdx, Idx, LabelIdx, LocalIdx, RefType, TableIdx, TypeIdx,
+    ValueType,
 };
 
 pub struct Expression {}
@@ -7,6 +8,11 @@ pub struct Expression {}
 pub enum BlockType {
     Type(Idx<FuncType>),
     ValType(Option<ValueType>),
+}
+
+pub struct MemArg {
+    pub align: u32,
+    pub offset: u32,
 }
 
 pub enum Instruction {
@@ -53,10 +59,38 @@ pub enum Instruction {
     GlobalSet(Idx<GlobalIdx>),
 
     // table instructions
-    Table,
+    // TODO: add
 
     // memory instructions
-    Memory,
+    I32Load(MemArg),
+    I64Load(MemArg),
+    F32Load(MemArg),
+    F64Load(MemArg),
+    I32Load8S(MemArg),
+    I32Load8U(MemArg),
+    I32Load16S(MemArg),
+    I32Load16U(MemArg),
+    I64Load8S(MemArg),
+    I64Load8U(MemArg),
+    I64Load16S(MemArg),
+    I64Load16U(MemArg),
+    I64Load32S(MemArg),
+    I64Load32U(MemArg),
+    I32Store(MemArg),
+    I64Store(MemArg),
+    F32Store(MemArg),
+    F64Store(MemArg),
+    I32Store8(MemArg),
+    I32Store16(MemArg),
+    I64Store8(MemArg),
+    I64Store16(MemArg),
+    I64Store32(MemArg),
+    MemorySize,
+    MemoryGrow,
+    MemoryInit(Idx<DataIdx>),
+    DataDrop(Idx<DataIdx>),
+    MemoryCopy,
+    MemoryFill,
 
     // numeric instructions
     Numeric, // TODO: fix

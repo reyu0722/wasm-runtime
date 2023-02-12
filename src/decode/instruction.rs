@@ -1,5 +1,5 @@
 use super::prelude::*;
-use crate::core::{BlockType, Expression, Instruction};
+use crate::core::{BlockType, Expression, Instruction, MemArg};
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::BufRead;
 
@@ -25,6 +25,12 @@ pub trait ReadInstructionExt: BufRead {
             ensure!(x >= 0, "invalid block type");
             Ok(BlockType::Type(u32::try_from(x)?.into()))
         }
+    }
+
+    fn read_mem_arg(&mut self) -> Result<MemArg> {
+        let align = self.read_u32().context("failed to read align")?;
+        let offset = self.read_u32().context("failed to read offset")?;
+        Ok(MemArg { align, offset })
     }
 
     fn read_instr(&mut self) -> Result<Instruction> {
@@ -110,22 +116,38 @@ pub trait ReadInstructionExt: BufRead {
             0x24 => Instruction::GlobalSet(self.read_u32()?.into()),
 
             // table instructions
-            0x25 | 0x26 => {
-                // table.get, table.set
-                self.read_u32()?;
-                Instruction::Table
-            }
 
             // memory instructions
-            idx if (0x28..=0x3e).contains(&idx) => {
-                self.read_u32()?;
-                self.read_u32()?;
-                Instruction::Memory
+            0x28 => Instruction::I32Load(self.read_mem_arg()?),
+            0x29 => Instruction::I64Load(self.read_mem_arg()?),
+            0x2a => Instruction::F32Load(self.read_mem_arg()?),
+            0x2b => Instruction::F64Load(self.read_mem_arg()?),
+            0x2c => Instruction::I32Load8S(self.read_mem_arg()?),
+            0x2d => Instruction::I32Load8U(self.read_mem_arg()?),
+            0x2e => Instruction::I32Load16S(self.read_mem_arg()?),
+            0x2f => Instruction::I32Load16U(self.read_mem_arg()?),
+            0x30 => Instruction::I64Load8S(self.read_mem_arg()?),
+            0x31 => Instruction::I64Load8U(self.read_mem_arg()?),
+            0x32 => Instruction::I64Load16S(self.read_mem_arg()?),
+            0x33 => Instruction::I64Load16U(self.read_mem_arg()?),
+            0x34 => Instruction::I64Load32S(self.read_mem_arg()?),
+            0x35 => Instruction::I64Load32U(self.read_mem_arg()?),
+            0x36 => Instruction::I32Store(self.read_mem_arg()?),
+            0x37 => Instruction::I64Store(self.read_mem_arg()?),
+            0x38 => Instruction::F32Store(self.read_mem_arg()?),
+            0x39 => Instruction::F64Store(self.read_mem_arg()?),
+            0x3a => Instruction::I32Store8(self.read_mem_arg()?),
+            0x3b => Instruction::I32Store16(self.read_mem_arg()?),
+            0x3c => Instruction::I64Store8(self.read_mem_arg()?),
+            0x3d => Instruction::I64Store16(self.read_mem_arg()?),
+            0x3e => Instruction::I64Store32(self.read_mem_arg()?),
+            0x3f => {
+                self.read_and_ensure(0x00)?;
+                Instruction::MemorySize
             }
-            0x3f | 0x40 => {
-                // memory.size, memory.grow
-                self.read_u32()?;
-                Instruction::Memory
+            0x40 => {
+                self.read_and_ensure(0x00)?;
+                Instruction::MemoryGrow
             }
 
             // numeric instructions
@@ -159,38 +181,34 @@ pub trait ReadInstructionExt: BufRead {
                 let kind = self.read_u32()?;
                 match kind {
                     // numeric instructions
-                    kind if kind <= 0x07 => {}
+                    kind if kind <= 0x07 => Instruction::Numeric,
 
                     // memory instructions
                     0x08 => {
-                        self.read_and_ensure(0x00)
-                            .context("invalid memory instruction")?;
+                        let idx = self.read_u32()?.into();
+                        self.read_and_ensure(0x00)?;
+                        Instruction::MemoryInit(idx)
                     }
                     0x09 => {
-                        self.read_u32()?;
+                        let idx = self.read_u32()?.into();
+                        Instruction::DataDrop(idx)
                     }
                     0x10 => {
                         self.read_and_ensure(0x00)
                             .context("invalid memory instruction")?;
                         self.read_and_ensure(0x00)
                             .context("invalid memory instruction")?;
+                        Instruction::MemoryCopy
                     }
                     0x11 => {
                         self.read_and_ensure(0x00)
                             .context("invalid memory instruction")?;
+                        Instruction::MemoryFill
                     }
 
                     // table instructions
-                    0x12 | 0x14 => {
-                        self.read_u32()?;
-                        self.read_u32()?;
-                    }
-                    0x13 | 0x15 | 0x16 | 0x17 => {
-                        self.read_u32()?;
-                    }
                     _ => bail!("invalid table instruction: {}", kind),
                 }
-                Instruction::Memory
             }
 
             // vector instructions
