@@ -99,8 +99,8 @@ pub trait ReadInstructionExt: BufRead {
 
             // parametric instructions
             0x1a => Instruction::Drop,
-            0x1b => Instruction::Select,
-            0x1c => Instruction::SelectT(read_vec!(self, self.read_value_type()?)),
+            0x1b => Instruction::Select(Vec::new()),
+            0x1c => Instruction::Select(read_vec!(self, self.read_value_type()?)),
 
             // variable instructions
             0x20 => Instruction::LocalGet(self.read_u32()?.into()),

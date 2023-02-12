@@ -43,8 +43,7 @@ pub enum Instruction {
 
     // parametric instructions
     Drop,
-    Select,
-    SelectT(Vec<ValueType>),
+    Select(Vec<ValueType>),
 
     // variable instructions
     LocalGet(Idx<LocalIdx>),
