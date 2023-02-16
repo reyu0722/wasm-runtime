@@ -12,6 +12,10 @@ impl<T> Idx<T> {
             _phantom: PhantomData,
         }
     }
+
+    pub fn get(&self) -> u32 {
+        self.index
+    }
 }
 
 impl<T> From<u32> for Idx<T> {
@@ -19,6 +23,14 @@ impl<T> From<u32> for Idx<T> {
         Self::new(index)
     }
 }
+
+impl<T> Clone for Idx<T> {
+    fn clone(&self) -> Self {
+        Self::new(self.index)
+    }
+}
+
+impl<T> Copy for Idx<T> {}
 
 pub struct TypeIdx;
 pub struct FuncIdx;
