@@ -1,6 +1,6 @@
-use std::rc::Rc;
+use std::{collections::VecDeque, rc::Rc};
 
-use crate::core::{Func, FuncIdx, FuncType, Idx, Module, TypeIdx};
+use crate::core::{Func, FuncIdx, FuncType, Idx, Instruction, LocalIdx, Module, TypeIdx};
 
 pub struct Address<T> {
     pub address: u32,
@@ -35,6 +35,7 @@ pub struct FuncInstance {
     code: Func,
 }
 
+#[derive(Clone, Copy)]
 pub enum Value {
     I32(i32),
     I64(i64),
@@ -42,14 +43,23 @@ pub enum Value {
     F64(f64),
 }
 
-#[derive(Default)]
+pub enum StackEntry {
+    Value(Value),
+    // TODO: label
+    Frame(Frame),
+}
+
 pub struct Stack {
-    frames: Vec<Frame>,
+    data: VecDeque<StackEntry>,
 }
 
 impl Stack {
-    pub fn push_frame(&mut self, frame: Frame) {
-        self.frames.push(frame);
+    fn push_value(&mut self, value: Value) {
+        self.data.push_front(StackEntry::Value(value));
+    }
+
+    fn push_frame(&mut self, frame: Frame) {
+        self.data.push_front(StackEntry::Frame(frame));
     }
 }
 
@@ -58,8 +68,15 @@ pub struct Frame {
     locals: Vec<Value>,
 }
 
+impl Frame {
+    pub fn get_local(&self, idx: Idx<LocalIdx>) -> Value {
+        self.locals[idx.get() as usize]
+    }
+}
+
 pub struct Store {
     funcs: Vec<FuncInstance>,
+    stack: Stack,
 }
 
 impl Store {
@@ -86,15 +103,19 @@ impl Store {
     }
 
     pub fn instantiate(&mut self, module: Module) {
-        let mut stack = Stack::default();
         let instance = self.alloc_module(module);
         let frame = Frame::default();
-        stack.push_frame(frame);
+        self.stack.push_frame(frame);
 
         if let Some(idx) = instance.start {
             self.execute(idx)
         }
     }
 
-    fn execute(&mut self, _idx: Idx<FuncIdx>) {}
+    fn execute(&mut self, idx: Idx<FuncIdx>) {
+        let func = &self.funcs[idx.get() as usize];
+        for _instr in &func.code.body.instructions {
+            unimplemented!()
+        }
+    }
 }

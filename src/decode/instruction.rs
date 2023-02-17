@@ -5,11 +5,12 @@ use std::io::BufRead;
 
 pub trait ReadInstructionExt: BufRead {
     fn read_expr(&mut self) -> Result<Expression> {
+        let mut vec = Vec::new();
         while !self.read_if_equal(0x0b)? {
-            self.read_instr().context("failed to read instruction")?;
+            vec.push(self.read_instr().context("failed to read instruction")?);
         }
 
-        Ok(Expression {})
+        Ok(Expression { instructions: vec })
     }
 
     fn read_block_type(&mut self) -> Result<BlockType> {

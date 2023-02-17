@@ -34,7 +34,7 @@ pub trait ReadSectionExt: BufRead {
                     .map(|id| Func {
                         type_id: id,
                         locals: vec![],
-                        body: Expression {},
+                        body: Expression::default(),
                     })
                     .collect();
             }

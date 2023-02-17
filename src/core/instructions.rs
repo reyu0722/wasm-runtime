@@ -3,7 +3,10 @@ use super::{
     ValueType,
 };
 
-pub struct Expression {}
+#[derive(Default)]
+pub struct Expression {
+    pub instructions: Vec<Instruction>,
+}
 
 pub enum BlockType {
     Type(Idx<FuncType>),
