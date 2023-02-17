@@ -1,6 +1,6 @@
-use std::{collections::VecDeque, rc::Rc};
-
 use crate::core::{Func, FuncIdx, FuncType, Idx, Instruction, LocalIdx, Module, TypeIdx};
+use anyhow::{bail, Result};
+use std::{collections::VecDeque, rc::Rc};
 
 pub struct Address<T> {
     pub address: u32,
@@ -21,7 +21,6 @@ pub struct FuncAddr;
 pub struct ModuleInstance {
     types: Vec<Rc<FuncType>>,
     func_addrs: Vec<Address<FuncAddr>>,
-    start: Option<Idx<FuncIdx>>,
 }
 
 impl ModuleInstance {
@@ -35,7 +34,7 @@ pub struct FuncInstance {
     code: Func,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Value {
     I32(i32),
     I64(i64),
@@ -49,6 +48,7 @@ pub enum StackEntry {
     Frame(Frame),
 }
 
+#[derive(Default)]
 pub struct Stack {
     data: VecDeque<StackEntry>,
 }
@@ -56,6 +56,13 @@ pub struct Stack {
 impl Stack {
     fn push_value(&mut self, value: Value) {
         self.data.push_front(StackEntry::Value(value));
+    }
+
+    fn pop_value(&mut self) -> Result<Value> {
+        match self.data.pop_front() {
+            Some(StackEntry::Value(value)) => Ok(value),
+            _ => bail!("expected value on stack"),
+        }
     }
 
     fn push_frame(&mut self, frame: Frame) {
@@ -74,6 +81,7 @@ impl Frame {
     }
 }
 
+#[derive(Default)]
 pub struct Store {
     funcs: Vec<FuncInstance>,
     stack: Stack,
@@ -91,7 +99,6 @@ impl Store {
         let mut instance = ModuleInstance {
             types: module.types.into_iter().map(Rc::new).collect(),
             func_addrs: Vec::with_capacity(module.funcs.len()),
-            start: module.start,
         };
 
         for func in module.funcs {
@@ -106,16 +113,80 @@ impl Store {
         let instance = self.alloc_module(module);
         let frame = Frame::default();
         self.stack.push_frame(frame);
-
-        if let Some(idx) = instance.start {
-            self.execute(idx)
-        }
     }
 
-    fn execute(&mut self, idx: Idx<FuncIdx>) {
+    fn execute(&mut self, idx: Idx<FuncIdx>) -> Result<()> {
         let func = &self.funcs[idx.get() as usize];
-        for _instr in &func.code.body.instructions {
-            unimplemented!()
+        for instr in &func.code.body.instructions {
+            match instr {
+                Instruction::I32Const(i) => {
+                    self.stack.push_value(Value::I32(*i));
+                }
+                Instruction::I32Add => {
+                    let v2 = self.stack.pop_value()?;
+                    let v1 = self.stack.pop_value()?;
+                    match (v1, v2) {
+                        (Value::I32(v1), Value::I32(v2)) => {
+                            self.stack.push_value(Value::I32(v1 + v2));
+                        }
+                        _ => bail!("expected i32 values"),
+                    }
+                }
+                _ => unimplemented!(),
+            }
         }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::{Expression, Func, FuncType, Instruction, Module};
+    use crate::decode::decode;
+
+    fn execute_instructions(instructions: Vec<Instruction>) -> Result<Value> {
+        let mut store = Store::default();
+        let mut module = Module::default();
+        let ty = FuncType {
+            params: vec![],
+            results: vec![],
+        };
+        let func = Func {
+            type_id: Idx::new(0),
+            locals: vec![],
+            body: Expression { instructions },
+        };
+
+        module.types.push(ty);
+        module.funcs.push(func);
+
+        store.instantiate(module);
+        store.execute(Idx::new(0))?;
+        store.stack.pop_value()
+    }
+
+    #[test]
+    fn test_execute() {
+        let add = vec![
+            Instruction::I32Const(1),
+            Instruction::I32Const(2),
+            Instruction::I32Add,
+        ];
+        let value = execute_instructions(add).unwrap();
+        assert_eq!(value, Value::I32(3));
+    }
+
+    #[test]
+    fn test_decode_and_exec() {
+        let file = std::fs::File::open("test/test.wasm").unwrap();
+        let mut reader = std::io::BufReader::new(file);
+        let module = decode(&mut reader).unwrap();
+
+        let mut store = Store::default();
+        store.instantiate(module);
+        store.execute(Idx::new(1)).unwrap();
+        let value = store.stack.pop_value().unwrap();
+        assert_eq!(value, Value::I32(42));
     }
 }

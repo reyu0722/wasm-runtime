@@ -154,8 +154,8 @@ pub trait ReadInstructionExt: BufRead {
             // numeric instructions
             0x41 => {
                 // i32.const
-                self.read_signed_leb128(32)?;
-                Instruction::Numeric
+                let v = self.read_signed_leb128(32)?.try_into()?;
+                Instruction::I32Const(v)
             }
             0x42 => {
                 // i64.const
@@ -176,7 +176,10 @@ pub trait ReadInstructionExt: BufRead {
                 }
                 Instruction::Numeric
             }
-            idx if (0x45..=0xc4).contains(&idx) => Instruction::Numeric,
+            idx if (0x45..=0xc4).contains(&idx) => match idx {
+                0x6a => Instruction::I32Add,
+                _ => Instruction::Numeric,
+            },
 
             0xfc => {
                 let kind = self.read_u32()?;

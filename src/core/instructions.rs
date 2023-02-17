@@ -96,6 +96,8 @@ pub enum Instruction {
     MemoryFill,
 
     // numeric instructions
+    I32Const(i32),
+    I32Add,
     Numeric, // TODO: fix
 
     // vector instructions

@@ -4,7 +4,7 @@ use crate::core::{
     Import, ImportDesc, Memory, Module, RefType, Table, TypeIdx,
 };
 use anyhow::{bail, ensure, Context as _, Result};
-use std::io::{BufRead, Cursor};
+use std::io::{BufRead, Cursor, Seek};
 
 pub trait ReadSectionExt: BufRead {
     fn read_section(&mut self, module: &mut Module) -> Result<()> {
@@ -21,6 +21,9 @@ pub trait ReadSectionExt: BufRead {
         let mut cursor = Cursor::new(cont);
 
         match idx {
+            0 => {
+                cursor.seek(std::io::SeekFrom::End(0))?; // skip custom section
+            }
             1 => {
                 module.types = cursor.read_type_section()?;
             }

@@ -10,7 +10,7 @@ mod types;
 mod util;
 mod value;
 
-pub fn decode(buf: &mut impl BufRead) -> Result<()> {
+pub fn decode(buf: &mut impl BufRead) -> Result<Module> {
     let mut header = [0u8; 8];
     buf.read_exact(&mut header)?;
 
@@ -25,7 +25,7 @@ pub fn decode(buf: &mut impl BufRead) -> Result<()> {
     while buf.has_data_left()? {
         buf.read_section(&mut module)?;
     }
-    Ok(())
+    Ok(module)
 }
 
 #[cfg(test)]
