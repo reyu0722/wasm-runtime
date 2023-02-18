@@ -1,5 +1,8 @@
-use crate::core::{Func, FuncIdx, FuncType, Idx, Instruction, LocalIdx, Module, TypeIdx};
-use anyhow::{bail, Result};
+use crate::core::{
+    BlockType, Func, FuncIdx, FuncType, Idx, Instruction, LocalIdx, Module, NumType, TypeIdx,
+    ValueType,
+};
+use anyhow::{bail, ensure, Result};
 use std::{collections::VecDeque, rc::Rc};
 
 pub struct Address<T> {
@@ -42,22 +45,48 @@ pub enum Value {
     F64(f64),
 }
 
-pub enum StackEntry {
+impl Value {
+    pub fn get_type(&self) -> ValueType {
+        match self {
+            Value::I32(_) => ValueType::Num(NumType::I32),
+            Value::I64(_) => ValueType::Num(NumType::I64),
+            Value::F32(_) => ValueType::Num(NumType::F32),
+            Value::F64(_) => ValueType::Num(NumType::F64),
+        }
+    }
+}
+
+pub enum StackEntry<'a> {
     Value(Value),
-    // TODO: label
+    Label(Label<'a>),
     Frame(Frame),
 }
 
-pub struct Label {}
-
-#[derive(Default)]
-pub struct Stack {
-    data: VecDeque<StackEntry>,
+pub struct Label<'a> {
+    arity: usize,
+    instr: &'a Vec<Instruction>,
 }
 
-impl Stack {
+#[derive(Default)]
+pub struct Stack<'a> {
+    data: VecDeque<StackEntry<'a>>,
+}
+
+impl<'a> Stack<'a> {
     fn push_value(&mut self, value: Value) {
         self.data.push_front(StackEntry::Value(value));
+    }
+
+    fn push_frame(&mut self, frame: Frame) {
+        self.data.push_front(StackEntry::Frame(frame));
+    }
+
+    fn push_label(&mut self, label: Label<'a>) {
+        self.data.push_front(StackEntry::Label(label));
+    }
+
+    fn pop(&mut self) -> Option<StackEntry> {
+        self.data.pop_front()
     }
 
     fn pop_value(&mut self) -> Result<Value> {
@@ -67,8 +96,11 @@ impl Stack {
         }
     }
 
-    fn push_frame(&mut self, frame: Frame) {
-        self.data.push_front(StackEntry::Frame(frame));
+    fn pop_label(&mut self) -> Result<Label<'a>> {
+        match self.data.pop_front() {
+            Some(StackEntry::Label(label)) => Ok(label),
+            _ => bail!("expected label on stack"),
+        }
     }
 }
 
@@ -120,12 +152,47 @@ impl Store {
         self.execute_label(&mut stack, &func.code.body.instructions)?;
 
         let v = stack.pop_value()?;
+        ensure!(stack.data.is_empty(), "stack is not empty");
         Ok(v)
     }
 
-    fn execute_label(&self, stack: &mut Stack, instructions: &Vec<Instruction>) -> Result<()> {
+    fn execute_label<'a>(
+        &self,
+        stack: &mut Stack<'a>,
+        instructions: &'a Vec<Instruction>,
+    ) -> Result<()> {
         for instr in instructions {
             match instr {
+                Instruction::Block {
+                    block_type,
+                    instructions,
+                } => match block_type {
+                    BlockType::ValType(None) => {
+                        let label = Label {
+                            arity: 0,
+                            instr: instructions,
+                        };
+                        stack.push_label(label);
+
+                        self.execute_label(stack, instructions)?;
+                        stack.pop_label()?;
+                    }
+                    BlockType::ValType(Some(ty)) => {
+                        let label = Label {
+                            arity: 1,
+                            instr: instructions,
+                        };
+                        stack.push_label(label);
+
+                        self.execute_label(stack, instructions)?;
+                        let v = stack.pop_value()?;
+
+                        ensure!(v.get_type() == *ty, "expected value of type {:?}", ty);
+                        stack.pop_label()?;
+                        stack.push_value(v);
+                    }
+                    _ => unimplemented!(),
+                },
                 Instruction::I32Const(i) => {
                     stack.push_value(Value::I32(*i));
                 }
@@ -149,7 +216,7 @@ impl Store {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{Expression, Func, FuncType, Instruction, Module};
+    use crate::core::{BlockType, Expression, Func, FuncType, Instruction, Module};
     use crate::decode::decode;
 
     fn execute_instructions(instructions: Vec<Instruction>) -> Result<Value> {
@@ -181,6 +248,17 @@ mod tests {
         ];
         let value = execute_instructions(add).unwrap();
         assert_eq!(value, Value::I32(3));
+
+        let block = vec![Instruction::Block {
+            block_type: BlockType::ValType(Some(ValueType::Num(NumType::I32))),
+            instructions: vec![
+                Instruction::I32Const(12),
+                Instruction::I32Const(23),
+                Instruction::I32Add,
+            ],
+        }];
+        let value = execute_instructions(block).unwrap();
+        assert_eq!(value, Value::I32(35));
     }
 
     #[test]
