@@ -146,10 +146,15 @@ impl Store {
         let instance = self.alloc_module(module);
     }
 
-    pub fn execute_func(&self, idx: Idx<FuncIdx>) -> Result<Value> {
-        let func = &self.funcs[idx.get() as usize];
+    pub fn execute(&self, idx: Idx<FuncIdx>) -> Result<Value> {
         let mut stack = Stack::default();
-        self.execute_label(&mut stack, &func.code.body.instructions)?;
+        self.execute_func(&mut stack, idx)
+    }
+
+    fn execute_func<'a>(&'a self, stack: &mut Stack<'a>, idx: Idx<FuncIdx>) -> Result<Value> {
+        let func = &self.funcs[idx.get() as usize];
+        // TODO: push frame
+        self.execute_label(stack, &func.code.body.instructions)?;
 
         let v = stack.pop_value()?;
         ensure!(stack.data.is_empty(), "stack is not empty");
@@ -234,11 +239,11 @@ mod tests {
         module.funcs.push(func);
 
         store.instantiate(module);
-        store.execute_func(Idx::new(0))
+        store.execute(Idx::new(0))
     }
 
     #[test]
-    fn test_execute() {
+    fn test_add() {
         let add = vec![
             Instruction::I32Const(1),
             Instruction::I32Const(2),
@@ -246,7 +251,10 @@ mod tests {
         ];
         let value = execute_instructions(add).unwrap();
         assert_eq!(value, Value::I32(3));
+    }
 
+    #[test]
+    fn test_block() {
         let block = vec![Instruction::Block {
             block_type: BlockType::ValType(Some(ValueType::Num(NumType::I32))),
             instructions: vec![
@@ -267,7 +275,7 @@ mod tests {
 
         let mut store = Store::default();
         store.instantiate(module);
-        let value = store.execute_func(Idx::new(1)).unwrap();
+        let value = store.execute(Idx::new(1)).unwrap();
         assert_eq!(value, Value::I32(42));
     }
 }
