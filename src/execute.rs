@@ -48,6 +48,8 @@ pub enum StackEntry {
     Frame(Frame),
 }
 
+pub struct Label {}
+
 #[derive(Default)]
 pub struct Stack {
     data: VecDeque<StackEntry>,
@@ -84,7 +86,6 @@ impl Frame {
 #[derive(Default)]
 pub struct Store {
     funcs: Vec<FuncInstance>,
-    stack: Stack,
 }
 
 impl Store {
@@ -111,23 +112,29 @@ impl Store {
 
     pub fn instantiate(&mut self, module: Module) {
         let instance = self.alloc_module(module);
-        let frame = Frame::default();
-        self.stack.push_frame(frame);
     }
 
-    fn execute(&mut self, idx: Idx<FuncIdx>) -> Result<()> {
+    pub fn execute_func(&self, idx: Idx<FuncIdx>) -> Result<Value> {
         let func = &self.funcs[idx.get() as usize];
-        for instr in &func.code.body.instructions {
+        let mut stack = Stack::default();
+        self.execute_label(&mut stack, &func.code.body.instructions)?;
+
+        let v = stack.pop_value()?;
+        Ok(v)
+    }
+
+    fn execute_label(&self, stack: &mut Stack, instructions: &Vec<Instruction>) -> Result<()> {
+        for instr in instructions {
             match instr {
                 Instruction::I32Const(i) => {
-                    self.stack.push_value(Value::I32(*i));
+                    stack.push_value(Value::I32(*i));
                 }
                 Instruction::I32Add => {
-                    let v2 = self.stack.pop_value()?;
-                    let v1 = self.stack.pop_value()?;
+                    let v2 = stack.pop_value()?;
+                    let v1 = stack.pop_value()?;
                     match (v1, v2) {
                         (Value::I32(v1), Value::I32(v2)) => {
-                            self.stack.push_value(Value::I32(v1 + v2));
+                            stack.push_value(Value::I32(v1 + v2));
                         }
                         _ => bail!("expected i32 values"),
                     }
@@ -162,8 +169,7 @@ mod tests {
         module.funcs.push(func);
 
         store.instantiate(module);
-        store.execute(Idx::new(0))?;
-        store.stack.pop_value()
+        store.execute_func(Idx::new(0))
     }
 
     #[test]
@@ -185,8 +191,7 @@ mod tests {
 
         let mut store = Store::default();
         store.instantiate(module);
-        store.execute(Idx::new(1)).unwrap();
-        let value = store.stack.pop_value().unwrap();
+        let value = store.execute_func(Idx::new(1)).unwrap();
         assert_eq!(value, Value::I32(42));
     }
 }
