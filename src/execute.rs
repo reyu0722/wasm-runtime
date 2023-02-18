@@ -166,33 +166,31 @@ impl Store {
                 Instruction::Block {
                     block_type,
                     instructions,
-                } => match block_type {
-                    BlockType::ValType(None) => {
-                        let label = Label {
-                            arity: 0,
-                            instr: instructions,
-                        };
-                        stack.push_label(label);
+                } => {
+                    let iter: Vec<&ValueType> = match block_type {
+                        BlockType::ValType(op) => op.iter().collect(),
+                        _ => unimplemented!(),
+                    };
+                    let label = Label {
+                        arity: iter.len(),
+                        instr: instructions,
+                    };
+                    stack.push_label(label);
 
-                        self.execute_label(stack, instructions)?;
-                        stack.pop_label()?;
-                    }
-                    BlockType::ValType(Some(ty)) => {
-                        let label = Label {
-                            arity: 1,
-                            instr: instructions,
-                        };
-                        stack.push_label(label);
+                    self.execute_label(stack, instructions)?;
 
-                        self.execute_label(stack, instructions)?;
+                    let mut values = vec![];
+                    for ty in iter {
                         let v = stack.pop_value()?;
+                        ensure!(v.get_type() == *ty, "type mismatch");
+                        values.push(v);
+                    }
 
-                        ensure!(v.get_type() == *ty, "expected value of type {:?}", ty);
-                        stack.pop_label()?;
+                    stack.pop_label()?;
+                    for v in values {
                         stack.push_value(v);
                     }
-                    _ => unimplemented!(),
-                },
+                }
                 Instruction::I32Const(i) => {
                     stack.push_value(Value::I32(*i));
                 }
