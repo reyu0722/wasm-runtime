@@ -146,19 +146,24 @@ impl Store {
         let instance = self.alloc_module(module);
     }
 
-    pub fn execute(&self, idx: Idx<FuncIdx>) -> Result<Value> {
+    pub fn execute(&self, idx: Idx<FuncIdx>) -> Result<Vec<Value>> {
         let mut stack = Stack::default();
         self.execute_func(&mut stack, idx)
     }
 
-    fn execute_func<'a>(&'a self, stack: &mut Stack<'a>, idx: Idx<FuncIdx>) -> Result<Value> {
+    fn execute_func<'a>(&'a self, stack: &mut Stack<'a>, idx: Idx<FuncIdx>) -> Result<Vec<Value>> {
         let func = &self.funcs[idx.get() as usize];
         // TODO: push frame
         self.execute_label(stack, &func.code.body.instructions)?;
 
-        let v = stack.pop_value()?;
+        let mut values = vec![];
+        for ty in func.ty.results.iter() {
+            let v = stack.pop_value()?;
+            ensure!(v.get_type() == *ty, "type mismatch");
+            values.push(v);
+        }
         ensure!(stack.data.is_empty(), "stack is not empty");
-        Ok(v)
+        Ok(values)
     }
 
     fn execute_label<'a>(
@@ -222,20 +227,19 @@ mod tests {
     use crate::core::{BlockType, Expression, Func, FuncType, Instruction, Module};
     use crate::decode::decode;
 
-    fn execute_instructions(instructions: Vec<Instruction>) -> Result<Value> {
+    fn execute_instructions(
+        types: Vec<FuncType>,
+        instructions: Vec<Instruction>,
+    ) -> Result<Vec<Value>> {
         let mut store = Store::default();
         let mut module = Module::default();
-        let ty = FuncType {
-            params: vec![],
-            results: vec![],
-        };
         let func = Func {
             type_id: Idx::new(0),
             locals: vec![],
             body: Expression { instructions },
         };
 
-        module.types.push(ty);
+        module.types = types;
         module.funcs.push(func);
 
         store.instantiate(module);
@@ -244,17 +248,25 @@ mod tests {
 
     #[test]
     fn test_add() {
+        let types = vec![FuncType {
+            params: vec![],
+            results: vec![ValueType::Num(NumType::I32)],
+        }];
         let add = vec![
             Instruction::I32Const(1),
             Instruction::I32Const(2),
             Instruction::I32Add,
         ];
-        let value = execute_instructions(add).unwrap();
-        assert_eq!(value, Value::I32(3));
+        let value = execute_instructions(types, add).unwrap();
+        assert_eq!(value, vec![Value::I32(3)]);
     }
 
     #[test]
     fn test_block() {
+        let types = vec![FuncType {
+            params: vec![],
+            results: vec![ValueType::Num(NumType::I32)],
+        }];
         let block = vec![Instruction::Block {
             block_type: BlockType::ValType(Some(ValueType::Num(NumType::I32))),
             instructions: vec![
@@ -263,8 +275,8 @@ mod tests {
                 Instruction::I32Add,
             ],
         }];
-        let value = execute_instructions(block).unwrap();
-        assert_eq!(value, Value::I32(35));
+        let value = execute_instructions(types, block).unwrap();
+        assert_eq!(value, vec![Value::I32(35)]);
     }
 
     #[test]
@@ -276,6 +288,6 @@ mod tests {
         let mut store = Store::default();
         store.instantiate(module);
         let value = store.execute(Idx::new(1)).unwrap();
-        assert_eq!(value, Value::I32(42));
+        assert_eq!(value, vec![Value::I32(42)]);
     }
 }
