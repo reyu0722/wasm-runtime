@@ -70,6 +70,7 @@ pub struct Label<'a> {
 #[derive(Default)]
 pub struct Stack<'a> {
     data: VecDeque<StackEntry<'a>>,
+    current_frame: Option<Frame>,
 }
 
 impl<'a> Stack<'a> {
@@ -146,15 +147,21 @@ impl Store {
         let instance = self.alloc_module(module);
     }
 
-    pub fn execute(&self, idx: Idx<FuncIdx>) -> Result<Vec<Value>> {
+    pub fn execute(&self, idx: Idx<FuncIdx>, args: Vec<Value>) -> Result<Vec<Value>> {
         let mut stack = Stack::default();
-        self.execute_func(&mut stack, idx)
+        self.execute_func(&mut stack, idx, args)
     }
 
-    fn execute_func<'a>(&'a self, stack: &mut Stack<'a>, idx: Idx<FuncIdx>) -> Result<Vec<Value>> {
+    fn execute_func<'a>(
+        &'a self,
+        stack: &mut Stack<'a>,
+        idx: Idx<FuncIdx>,
+        locals: Vec<Value>,
+    ) -> Result<Vec<Value>> {
         let func = &self.funcs[idx.get() as usize];
-        // TODO: push frame
-        self.execute_label(stack, &func.code.body.instructions)?;
+
+        let frame = Frame { locals };
+        self.execute_label(stack, &frame, &func.code.body.instructions)?;
 
         let mut values = vec![];
         for ty in func.ty.results.iter() {
@@ -169,6 +176,7 @@ impl Store {
     fn execute_label<'a>(
         &self,
         stack: &mut Stack<'a>,
+        frame: &Frame,
         instructions: &'a Vec<Instruction>,
     ) -> Result<()> {
         for instr in instructions {
@@ -187,7 +195,7 @@ impl Store {
                     };
                     stack.push_label(label);
 
-                    self.execute_label(stack, instructions)?;
+                    self.execute_label(stack, frame, instructions)?;
 
                     let mut values = vec![];
                     for ty in iter {
@@ -201,6 +209,12 @@ impl Store {
                         stack.push_value(v);
                     }
                 }
+
+                Instruction::LocalGet(idx) => {
+                    let v = frame.get_local(*idx);
+                    stack.push_value(v);
+                }
+
                 Instruction::I32Const(i) => {
                     stack.push_value(Value::I32(*i));
                 }
@@ -230,6 +244,7 @@ mod tests {
     fn execute_instructions(
         types: Vec<FuncType>,
         instructions: Vec<Instruction>,
+        args: Vec<Value>,
     ) -> Result<Vec<Value>> {
         let mut store = Store::default();
         let mut module = Module::default();
@@ -243,7 +258,7 @@ mod tests {
         module.funcs.push(func);
 
         store.instantiate(module);
-        store.execute(Idx::new(0))
+        store.execute(Idx::new(0), args)
     }
 
     #[test]
@@ -257,8 +272,23 @@ mod tests {
             Instruction::I32Const(2),
             Instruction::I32Add,
         ];
-        let value = execute_instructions(types, add).unwrap();
+        let value = execute_instructions(types, add, vec![]).unwrap();
         assert_eq!(value, vec![Value::I32(3)]);
+    }
+
+    #[test]
+    fn test_add_with_args() {
+        let types = vec![FuncType {
+            params: vec![ValueType::Num(NumType::I32), ValueType::Num(NumType::I32)],
+            results: vec![ValueType::Num(NumType::I32)],
+        }];
+        let add = vec![
+            Instruction::LocalGet(Idx::from(0)),
+            Instruction::LocalGet(Idx::from(1)),
+            Instruction::I32Add,
+        ];
+        let value = execute_instructions(types, add, vec![Value::I32(4), Value::I32(7)]).unwrap();
+        assert_eq!(value, vec![Value::I32(11)]);
     }
 
     #[test]
@@ -275,7 +305,7 @@ mod tests {
                 Instruction::I32Add,
             ],
         }];
-        let value = execute_instructions(types, block).unwrap();
+        let value = execute_instructions(types, block, vec![]).unwrap();
         assert_eq!(value, vec![Value::I32(35)]);
     }
 
@@ -287,7 +317,7 @@ mod tests {
 
         let mut store = Store::default();
         store.instantiate(module);
-        let value = store.execute(Idx::new(1)).unwrap();
+        let value = store.execute(Idx::new(1), vec![]).unwrap();
         assert_eq!(value, vec![Value::I32(42)]);
     }
 }
