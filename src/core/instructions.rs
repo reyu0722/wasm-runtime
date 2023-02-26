@@ -101,6 +101,7 @@ pub enum Instruction {
     // numeric instructions
     I32Const(i32),
     I32Add,
+    I32LtS,
     Numeric, // TODO: fix
 
     // vector instructions

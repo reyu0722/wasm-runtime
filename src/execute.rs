@@ -156,7 +156,9 @@ impl Store {
 
     pub fn execute(&self, idx: Idx<FuncIdx>, args: Vec<Value>) -> Result<Vec<Value>> {
         let mut stack = Stack::default();
-        self.execute_func(&mut stack, idx, args)
+        let res = self.execute_func(&mut stack, idx, args);
+        ensure!(stack.data.is_empty(), "stack is not empty");
+        res
     }
 
     fn execute_func<'a>(
@@ -176,12 +178,11 @@ impl Store {
             ensure!(v.get_type() == *ty, "type mismatch");
             values.push(v);
         }
-        ensure!(stack.data.is_empty(), "stack is not empty");
         Ok(values)
     }
 
     fn execute_label<'a>(
-        &self,
+        &'a self,
         stack: &mut Stack<'a>,
         frame: &Frame,
         instructions: &'a Vec<Instruction>,
@@ -256,6 +257,19 @@ impl Store {
                         stack.push_value(v);
                     }
                 }
+                Instruction::Call(idx) => {
+                    let ty = &self.funcs[idx.get() as usize].ty;
+                    let mut args = vec![];
+                    for t in ty.params.iter() {
+                        let v = stack.pop_value()?;
+                        ensure!(v.get_type() == *t, "type mismatch");
+                        args.push(v);
+                    }
+                    let res = self.execute_func(stack, *idx, args)?;
+                    for v in res {
+                        stack.push_value(v);
+                    }
+                }
 
                 Instruction::LocalGet(idx) => {
                     let v = frame.get_local(*idx);
@@ -275,6 +289,18 @@ impl Store {
                         _ => bail!("expected i32 values"),
                     }
                 }
+
+                Instruction::I32LtS => {
+                    let v2 = stack.pop_value()?;
+                    let v1 = stack.pop_value()?;
+                    match (v1, v2) {
+                        (Value::I32(v1), Value::I32(v2)) => {
+                            stack.push_value(Value::I32((v1 < v2) as i32));
+                        }
+                        _ => bail!("expected i32 values"),
+                    }
+                }
+
                 _ => unimplemented!(),
             }
         }
@@ -378,6 +404,41 @@ mod tests {
 
         let value = execute_instructions(types, if_instr, vec![Value::I32(0)]).unwrap();
         assert_eq!(value, vec![Value::I32(24)]);
+    }
+
+    #[test]
+    fn test_call() {
+        let types = vec![FuncType {
+            params: vec![ValueType::Num(NumType::I32)],
+            results: vec![ValueType::Num(NumType::I32)],
+        }];
+
+        let fib = vec![
+            Instruction::LocalGet(Idx::from(0)),
+            Instruction::I32Const(3),
+            Instruction::I32LtS,
+            Instruction::If {
+                block_type: BlockType::ValType(Some(ValueType::Num(NumType::I32))),
+                instructions: vec![Instruction::I32Const(1)],
+                else_instructions: vec![
+                    Instruction::LocalGet(Idx::from(0)),
+                    Instruction::I32Const(-1),
+                    Instruction::I32Add,
+                    Instruction::Call(Idx::from(0)),
+                    Instruction::LocalGet(Idx::from(0)),
+                    Instruction::I32Const(-2),
+                    Instruction::I32Add,
+                    Instruction::Call(Idx::from(0)),
+                    Instruction::I32Add,
+                ],
+            },
+        ];
+
+        let value = execute_instructions(types.clone(), fib.clone(), vec![Value::I32(5)]).unwrap();
+        assert_eq!(value, vec![Value::I32(5)]);
+
+        let value = execute_instructions(types, fib, vec![Value::I32(10)]).unwrap();
+        assert_eq!(value, vec![Value::I32(55)]);
     }
 
     #[test]

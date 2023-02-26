@@ -177,6 +177,7 @@ pub trait ReadInstructionExt: BufRead {
                 Instruction::Numeric
             }
             idx if (0x45..=0xc4).contains(&idx) => match idx {
+                0x48 => Instruction::I32LtS,
                 0x6a => Instruction::I32Add,
                 _ => Instruction::Numeric,
             },
