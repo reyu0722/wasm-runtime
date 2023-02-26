@@ -8,16 +8,19 @@ pub struct Expression {
     pub instructions: Vec<Instruction>,
 }
 
+#[derive(Clone)]
 pub enum BlockType {
     Type(Idx<FuncType>),
     ValType(Option<ValueType>),
 }
 
+#[derive(Clone)]
 pub struct MemArg {
     pub align: u32,
     pub offset: u32,
 }
 
+#[derive(Clone)]
 pub enum Instruction {
     // control instructions
     Unreachable,

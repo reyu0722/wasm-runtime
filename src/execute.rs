@@ -97,6 +97,13 @@ impl<'a> Stack<'a> {
         }
     }
 
+    fn pop_i32(&mut self) -> Result<i32> {
+        match self.pop_value()? {
+            Value::I32(value) => Ok(value),
+            _ => bail!("expected i32 on stack"),
+        }
+    }
+
     fn pop_label(&mut self) -> Result<Label<'a>> {
         match self.data.pop_front() {
             Some(StackEntry::Label(label)) => Ok(label),
@@ -181,6 +188,7 @@ impl Store {
     ) -> Result<()> {
         for instr in instructions {
             match instr {
+                // control instructions
                 Instruction::Nop => {}
                 Instruction::Unreachable => bail!("unreachable"),
                 Instruction::Block {
@@ -198,6 +206,43 @@ impl Store {
                     stack.push_label(label);
 
                     self.execute_label(stack, frame, instructions)?;
+
+                    let mut values = vec![];
+                    for ty in iter {
+                        let v = stack.pop_value()?;
+                        ensure!(v.get_type() == *ty, "type mismatch");
+                        values.push(v);
+                    }
+
+                    stack.pop_label()?;
+                    for v in values {
+                        stack.push_value(v);
+                    }
+                }
+                Instruction::If {
+                    block_type,
+                    instructions,
+                    else_instructions,
+                } => {
+                    let b = stack.pop_i32()?;
+                    let instr = if b != 0 {
+                        instructions
+                    } else {
+                        else_instructions
+                    };
+
+                    // TODO: blockとまとめる
+                    let iter: Vec<&ValueType> = match block_type {
+                        BlockType::ValType(op) => op.iter().collect(),
+                        _ => unimplemented!(),
+                    };
+                    let label = Label {
+                        arity: iter.len(),
+                        instr: instructions,
+                    };
+                    stack.push_label(label);
+
+                    self.execute_label(stack, frame, instr)?;
 
                     let mut values = vec![];
                     for ty in iter {
@@ -309,6 +354,30 @@ mod tests {
         }];
         let value = execute_instructions(types, block, vec![]).unwrap();
         assert_eq!(value, vec![Value::I32(35)]);
+    }
+
+    #[test]
+    fn test_if() {
+        let types = vec![FuncType {
+            params: vec![ValueType::Num(NumType::I32)],
+            results: vec![ValueType::Num(NumType::I32)],
+        }];
+
+        let if_instr = vec![
+            Instruction::LocalGet(Idx::from(0)),
+            Instruction::If {
+                block_type: BlockType::ValType(Some(ValueType::Num(NumType::I32))),
+                instructions: vec![Instruction::I32Const(42)],
+                else_instructions: vec![Instruction::I32Const(24)],
+            },
+        ];
+
+        let value =
+            execute_instructions(types.clone(), if_instr.clone(), vec![Value::I32(1)]).unwrap();
+        assert_eq!(value, vec![Value::I32(42)]);
+
+        let value = execute_instructions(types, if_instr, vec![Value::I32(0)]).unwrap();
+        assert_eq!(value, vec![Value::I32(24)]);
     }
 
     #[test]
