@@ -181,6 +181,8 @@ impl Store {
     ) -> Result<()> {
         for instr in instructions {
             match instr {
+                Instruction::Nop => {}
+                Instruction::Unreachable => bail!("unreachable"),
                 Instruction::Block {
                     block_type,
                     instructions,
