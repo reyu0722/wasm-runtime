@@ -85,25 +85,49 @@ impl<'a> Stack<'a> {
         self.data.push_front(StackEntry::Label(label));
     }
 
+    fn push_i32(&mut self, value: i32) {
+        self.push_value(Value::I32(value));
+    }
+
     fn pop_value(&mut self) -> Result<Value> {
-        match self.data.pop_front() {
-            Some(StackEntry::Value(value)) => Ok(value),
-            _ => bail!("expected value on stack"),
-        }
+        let Some(StackEntry::Value(value)) = self.data.pop_front() else {
+            bail!("expected value on stack");
+        };
+
+        Ok(value)
+    }
+
+    fn pop_and_check_value(&mut self, ty: ValueType) -> Result<Value> {
+        let value = self.pop_value()?;
+        ensure!(
+            value.get_type() == ty,
+            "failed to pop value: expected type {:?}",
+            ty
+        );
+        Ok(value)
+    }
+
+    fn pop_and_check_values(&mut self, types: &[ValueType]) -> Result<Vec<Value>> {
+        types
+            .iter()
+            .map(|ty| self.pop_and_check_value(*ty))
+            .collect::<Result<Vec<Value>>>()
     }
 
     fn pop_i32(&mut self) -> Result<i32> {
-        match self.pop_value()? {
-            Value::I32(value) => Ok(value),
-            _ => bail!("expected i32 on stack"),
-        }
+        let Ok(Value::I32(value)) = self.pop_value() else {
+            bail!("expected i32 on stack");
+        };
+
+        Ok(value)
     }
 
     fn pop_label(&mut self) -> Result<Label<'a>> {
-        match self.data.pop_front() {
-            Some(StackEntry::Label(label)) => Ok(label),
-            _ => bail!("expected label on stack"),
-        }
+        let Some(StackEntry::Label(label)) = self.data.pop_front() else {
+            bail!("expected label on stack");
+        };
+
+        Ok(label)
     }
 }
 
@@ -167,18 +191,13 @@ impl Store {
         let frame = Frame { locals };
         self.execute_label(stack, &frame, &func.code.body.instructions)?;
 
-        let mut values = vec![];
-        for ty in func.ty.results.iter() {
-            let v = stack.pop_value()?;
-            ensure!(v.get_type() == *ty, "type mismatch");
-            values.push(v);
-        }
+        let values = stack.pop_and_check_values(&func.ty.results)?;
         Ok(values)
     }
 
-    fn get_block_return_type<'a>(&self, block_type: &'a BlockType) -> Vec<&'a ValueType> {
+    fn get_block_return_type(&self, block_type: &BlockType) -> Vec<ValueType> {
         match block_type {
-            BlockType::ValType(op) => op.iter().collect(),
+            BlockType::ValType(op) => op.iter().copied().collect(),
             _ => todo!(),
         }
     }
@@ -208,12 +227,7 @@ impl Store {
                     self.execute_label(stack, frame, instructions)?;
 
                     // TODO: 切り出す
-                    let mut values = vec![];
-                    for ty in iter {
-                        let v = stack.pop_value()?;
-                        ensure!(v.get_type() == *ty, "type mismatch");
-                        values.push(v);
-                    }
+                    let values = stack.pop_and_check_values(&iter)?;
 
                     stack.pop_label()?;
                     for v in values {
@@ -232,7 +246,7 @@ impl Store {
                         else_instructions
                     };
 
-                    let iter: Vec<&ValueType> = self.get_block_return_type(block_type);
+                    let iter = self.get_block_return_type(block_type);
                     let label = Label {
                         arity: iter.len(),
                         instr: instructions,
@@ -241,12 +255,7 @@ impl Store {
 
                     self.execute_label(stack, frame, instr)?;
 
-                    let mut values = vec![];
-                    for ty in iter {
-                        let v = stack.pop_value()?;
-                        ensure!(v.get_type() == *ty, "type mismatch");
-                        values.push(v);
-                    }
+                    let values = stack.pop_and_check_values(&iter)?;
 
                     stack.pop_label()?;
                     for v in values {
@@ -255,12 +264,17 @@ impl Store {
                 }
                 Instruction::Call(idx) => {
                     let ty = &self.funcs[idx.get() as usize].ty;
-                    let mut args = vec![];
-                    for t in ty.params.iter() {
-                        let v = stack.pop_value()?;
-                        ensure!(v.get_type() == *t, "type mismatch");
-                        args.push(v);
-                    }
+
+                    let args = ty
+                        .params
+                        .iter()
+                        .map(|t| {
+                            let v = stack.pop_value()?;
+                            ensure!(v.get_type() == *t, "type mismatch");
+                            Ok(v)
+                        })
+                        .collect::<Result<Vec<Value>>>()?;
+
                     let res = self.execute_func(stack, *idx, args)?;
                     for v in res {
                         stack.push_value(v);
@@ -273,28 +287,20 @@ impl Store {
                 }
 
                 Instruction::I32Const(i) => {
-                    stack.push_value(Value::I32(*i));
+                    stack.push_i32(*i);
                 }
                 Instruction::I32Add => {
-                    let v2 = stack.pop_value()?;
-                    let v1 = stack.pop_value()?;
-                    match (v1, v2) {
-                        (Value::I32(v1), Value::I32(v2)) => {
-                            stack.push_value(Value::I32(v1 + v2));
-                        }
-                        _ => bail!("expected i32 values"),
-                    }
+                    let v2 = stack.pop_i32()?;
+                    let v1 = stack.pop_i32()?;
+
+                    stack.push_i32(v1 + v2);
                 }
 
                 Instruction::I32LtS => {
-                    let v2 = stack.pop_value()?;
-                    let v1 = stack.pop_value()?;
-                    match (v1, v2) {
-                        (Value::I32(v1), Value::I32(v2)) => {
-                            stack.push_value(Value::I32((v1 < v2) as i32));
-                        }
-                        _ => bail!("expected i32 values"),
-                    }
+                    let v2 = stack.pop_i32()?;
+                    let v1 = stack.pop_i32()?;
+
+                    stack.push_i32((v1 < v2) as i32);
                 }
 
                 _ => unimplemented!(),
