@@ -70,7 +70,6 @@ pub struct Label<'a> {
 #[derive(Default)]
 pub struct Stack<'a> {
     data: VecDeque<StackEntry<'a>>,
-    current_frame: Option<Frame>,
 }
 
 impl<'a> Stack<'a> {
@@ -84,10 +83,6 @@ impl<'a> Stack<'a> {
 
     fn push_label(&mut self, label: Label<'a>) {
         self.data.push_front(StackEntry::Label(label));
-    }
-
-    fn pop(&mut self) -> Option<StackEntry> {
-        self.data.pop_front()
     }
 
     fn pop_value(&mut self) -> Result<Value> {
@@ -151,7 +146,7 @@ impl Store {
     }
 
     pub fn instantiate(&mut self, module: Module) {
-        let instance = self.alloc_module(module);
+        self.alloc_module(module);
     }
 
     pub fn execute(&self, idx: Idx<FuncIdx>, args: Vec<Value>) -> Result<Vec<Value>> {
