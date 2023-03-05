@@ -181,6 +181,13 @@ impl Store {
         Ok(values)
     }
 
+    fn get_block_return_type<'a>(&self, block_type: &'a BlockType) -> Vec<&'a ValueType> {
+        match block_type {
+            BlockType::ValType(op) => op.iter().collect(),
+            _ => todo!(),
+        }
+    }
+
     fn execute_label<'a>(
         &'a self,
         stack: &mut Stack<'a>,
@@ -196,10 +203,7 @@ impl Store {
                     block_type,
                     instructions,
                 } => {
-                    let iter: Vec<&ValueType> = match block_type {
-                        BlockType::ValType(op) => op.iter().collect(),
-                        _ => unimplemented!(),
-                    };
+                    let iter = self.get_block_return_type(block_type);
                     let label = Label {
                         arity: iter.len(),
                         instr: instructions,
@@ -208,6 +212,7 @@ impl Store {
 
                     self.execute_label(stack, frame, instructions)?;
 
+                    // TODO: 切り出す
                     let mut values = vec![];
                     for ty in iter {
                         let v = stack.pop_value()?;
@@ -232,11 +237,7 @@ impl Store {
                         else_instructions
                     };
 
-                    // TODO: blockとまとめる
-                    let iter: Vec<&ValueType> = match block_type {
-                        BlockType::ValType(op) => op.iter().collect(),
-                        _ => unimplemented!(),
-                    };
+                    let iter: Vec<&ValueType> = self.get_block_return_type(block_type);
                     let label = Label {
                         arity: iter.len(),
                         instr: instructions,
