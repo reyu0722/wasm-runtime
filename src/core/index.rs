@@ -24,6 +24,12 @@ impl<T> From<u32> for Idx<T> {
     }
 }
 
+impl<T> From<Idx<T>> for u32 {
+    fn from(idx: Idx<T>) -> Self {
+        idx.index
+    }
+}
+
 impl<T> Clone for Idx<T> {
     fn clone(&self) -> Self {
         Self::new(self.index)

@@ -207,7 +207,7 @@ impl Store {
         stack: &mut Stack<'a>,
         frame: &Frame,
         instructions: &'a Vec<Instruction>,
-    ) -> Result<()> {
+    ) -> Result<u32> {
         for instr in instructions {
             match instr {
                 // control instructions
@@ -224,7 +224,7 @@ impl Store {
                     };
                     stack.push_label(label);
 
-                    self.execute_label(stack, frame, instructions)?;
+                    let l = self.execute_label(stack, frame, instructions)?;
 
                     // TODO: 切り出す
                     let values = stack.pop_and_check_values(&iter)?;
@@ -232,6 +232,10 @@ impl Store {
                     stack.pop_label()?;
                     for v in values {
                         stack.push_value(v);
+                    }
+
+                    if l != 0 {
+                        return Ok(l - 1);
                     }
                 }
                 Instruction::If {
@@ -253,7 +257,7 @@ impl Store {
                     };
                     stack.push_label(label);
 
-                    self.execute_label(stack, frame, instr)?;
+                    let l = self.execute_label(stack, frame, instr)?;
 
                     let values = stack.pop_and_check_values(&iter)?;
 
@@ -261,7 +265,12 @@ impl Store {
                     for v in values {
                         stack.push_value(v);
                     }
+
+                    if l != 0 {
+                        return Ok(l - 1);
+                    }
                 }
+                Instruction::Br(idx) => return Ok((*idx).into()),
                 Instruction::Call(idx) => {
                     let ty = &self.funcs[idx.get() as usize].ty;
 
@@ -306,7 +315,7 @@ impl Store {
                 _ => unimplemented!(),
             }
         }
-        Ok(())
+        Ok(0)
     }
 }
 
@@ -406,6 +415,31 @@ mod tests {
 
         let value = execute_instructions(types, if_instr, vec![Value::I32(0)]).unwrap();
         assert_eq!(value, vec![Value::I32(24)]);
+    }
+
+    #[test]
+    fn test_br() {
+        let types = vec![FuncType {
+            params: vec![],
+            results: vec![ValueType::Num(NumType::I32)],
+        }];
+
+        let br = vec![Instruction::Block {
+            block_type: BlockType::ValType(Some(ValueType::Num(NumType::I32))),
+            instructions: vec![
+                Instruction::I32Const(1),
+                Instruction::If {
+                    block_type: BlockType::ValType(Some(ValueType::Num(NumType::I32))),
+                    instructions: vec![Instruction::I32Const(12), Instruction::Br(Idx::from(1))],
+                    else_instructions: vec![Instruction::I32Const(12)],
+                },
+                Instruction::I32Const(42),
+                Instruction::I32Add,
+            ],
+        }];
+
+        let value = execute_instructions(types, br, vec![]).unwrap();
+        assert_eq!(value, vec![Value::I32(12)]);
     }
 
     #[test]
