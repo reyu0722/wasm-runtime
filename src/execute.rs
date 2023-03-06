@@ -142,6 +142,11 @@ impl Frame {
     }
 }
 
+enum ExecuteLabelRes {
+    Continue,
+    Break(u32),
+}
+
 #[derive(Default)]
 pub struct Store {
     funcs: Vec<FuncInstance>,
@@ -207,7 +212,7 @@ impl Store {
         stack: &mut Stack<'a>,
         frame: &Frame,
         instructions: &'a Vec<Instruction>,
-    ) -> Result<u32> {
+    ) -> Result<ExecuteLabelRes> {
         for instr in instructions {
             match instr {
                 // control instructions
@@ -226,7 +231,6 @@ impl Store {
 
                     let l = self.execute_label(stack, frame, instructions)?;
 
-                    // TODO: 切り出す
                     let values = stack.pop_and_check_values(&iter)?;
 
                     stack.pop_label()?;
@@ -234,8 +238,13 @@ impl Store {
                         stack.push_value(v);
                     }
 
-                    if l != 0 {
-                        return Ok(l - 1);
+                    match l {
+                        ExecuteLabelRes::Continue => {}
+                        ExecuteLabelRes::Break(l) => {
+                            if l != 0 {
+                                return Ok(ExecuteLabelRes::Break(l - 1));
+                            }
+                        }
                     }
                 }
                 Instruction::If {
@@ -266,11 +275,16 @@ impl Store {
                         stack.push_value(v);
                     }
 
-                    if l != 0 {
-                        return Ok(l - 1);
+                    match l {
+                        ExecuteLabelRes::Continue => {}
+                        ExecuteLabelRes::Break(l) => {
+                            if l != 0 {
+                                return Ok(ExecuteLabelRes::Break(l - 1));
+                            }
+                        }
                     }
                 }
-                Instruction::Br(idx) => return Ok((*idx).into()),
+                Instruction::Br(idx) => return Ok(ExecuteLabelRes::Break((*idx).into())),
                 Instruction::Call(idx) => {
                     let ty = &self.funcs[idx.get() as usize].ty;
 
@@ -315,7 +329,7 @@ impl Store {
                 _ => unimplemented!(),
             }
         }
-        Ok(0)
+        Ok(ExecuteLabelRes::Continue)
     }
 }
 
