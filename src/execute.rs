@@ -140,6 +140,10 @@ impl Frame {
     pub fn get_local(&self, idx: Idx<LocalIdx>) -> Value {
         self.locals[idx.get() as usize]
     }
+
+    pub fn set_local(&mut self, idx: Idx<LocalIdx>, value: Value) {
+        self.locals[idx.get() as usize] = value;
+    }
 }
 
 enum ExecuteLabelRes {
@@ -193,8 +197,8 @@ impl Store {
     ) -> Result<Vec<Value>> {
         let func = &self.funcs[idx.get() as usize];
 
-        let frame = Frame { locals };
-        self.execute_label(stack, &frame, &func.code.body.instructions)?;
+        let mut frame = Frame { locals };
+        self.execute_label(stack, &mut frame, &func.code.body.instructions)?;
 
         let values = stack.pop_and_check_values(&func.ty.results)?;
         Ok(values)
@@ -210,7 +214,7 @@ impl Store {
     fn execute_label<'a>(
         &'a self,
         stack: &mut Stack<'a>,
-        frame: &Frame,
+        frame: &mut Frame,
         instructions: &'a Vec<Instruction>,
     ) -> Result<ExecuteLabelRes> {
         for instr in instructions {
@@ -243,6 +247,40 @@ impl Store {
                         ExecuteLabelRes::Break(l) => {
                             if l != 0 {
                                 return Ok(ExecuteLabelRes::Break(l - 1));
+                            }
+                        }
+                    }
+                }
+                Instruction::Loop {
+                    block_type,
+                    instructions,
+                } => {
+                    let ty = self.get_block_return_type(block_type);
+
+                    loop {
+                        let label = Label {
+                            arity: ty.len(),
+                            instr: instructions,
+                        };
+                        stack.push_label(label);
+
+                        let l = self.execute_label(stack, frame, instructions)?;
+
+                        let values = stack.pop_and_check_values(&ty)?;
+
+                        stack.pop_label()?;
+                        for v in values {
+                            stack.push_value(v);
+                        }
+
+                        match l {
+                            ExecuteLabelRes::Continue => {}
+                            ExecuteLabelRes::Break(l) => {
+                                if l != 0 {
+                                    return Ok(ExecuteLabelRes::Break(l - 1));
+                                } else {
+                                    break;
+                                }
                             }
                         }
                     }
@@ -307,6 +345,10 @@ impl Store {
                 Instruction::LocalGet(idx) => {
                     let v = frame.get_local(*idx);
                     stack.push_value(v);
+                }
+                Instruction::LocalSet(idx) => {
+                    let v = stack.pop_value()?;
+                    frame.set_local(*idx, v);
                 }
 
                 Instruction::I32Const(i) => {
@@ -405,6 +447,36 @@ mod tests {
         }];
         let value = execute_instructions(types, block, vec![]).unwrap();
         assert_eq!(value, vec![Value::I32(35)]);
+    }
+
+    #[test]
+    fn test_loop() {
+        let types = vec![FuncType {
+            params: vec![ValueType::Num(NumType::I32)],
+            results: vec![ValueType::Num(NumType::I32)],
+        }];
+        let loop_instr = vec![
+            Instruction::Loop {
+                block_type: BlockType::ValType(None),
+                instructions: vec![
+                    Instruction::LocalGet(Idx::from(0)),
+                    Instruction::I32Const(1),
+                    Instruction::I32Add,
+                    Instruction::LocalSet(Idx::from(0)),
+                    Instruction::LocalGet(Idx::from(0)),
+                    Instruction::I32Const(10),
+                    Instruction::I32LtS,
+                    Instruction::If {
+                        block_type: BlockType::ValType(None),
+                        instructions: vec![],
+                        else_instructions: vec![Instruction::Br(Idx::from(1))],
+                    },
+                ],
+            },
+            Instruction::LocalGet(Idx::from(0)),
+        ];
+        let value = execute_instructions(types, loop_instr, vec![Value::I32(0)]).unwrap();
+        assert_eq!(value, vec![Value::I32(10)]);
     }
 
     #[test]
