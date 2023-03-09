@@ -100,14 +100,20 @@ pub enum Instruction {
 
     // numeric instructions
     I32Const(i32),
+    I32BinOp(IBinOp),
     I32Ne,
-    I32Add,
-    I32Sub,
-    I32Mul,
     I32LtS,
-    I32DivS,
     Numeric(u8), // TODO: fix
 
     // vector instructions
     Vector, // TODO: fix
+}
+
+#[derive(Clone, Debug)]
+pub enum IBinOp {
+    Add,
+    Sub,
+    Mul,
+    DivS,
+    TODO(u8),
 }

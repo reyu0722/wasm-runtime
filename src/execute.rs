@@ -1,5 +1,6 @@
 use crate::core::{
-    BlockType, Func, FuncIdx, FuncType, Idx, Instruction, Module, NumType, TypeIdx, ValueType,
+    BlockType, Func, FuncIdx, FuncType, IBinOp, Idx, Instruction, Module, NumType, TypeIdx,
+    ValueType,
 };
 use anyhow::{bail, ensure, Result};
 use std::rc::Rc;
@@ -274,29 +275,19 @@ impl Store {
 
                     stack.push_i32((v1 != v2).into());
                 }
-                Instruction::I32Add => {
+                Instruction::I32BinOp(op) => {
                     let v2 = stack.pop_i32()?;
                     let v1 = stack.pop_i32()?;
 
-                    stack.push_i32(v1 + v2);
-                }
-                Instruction::I32Sub => {
-                    let v2 = stack.pop_i32()?;
-                    let v1 = stack.pop_i32()?;
+                    let res = match op {
+                        IBinOp::Add => v1 + v2,
+                        IBinOp::Sub => v1 - v2,
+                        IBinOp::Mul => v1 * v2,
+                        IBinOp::DivS => v1 / v2,
+                        _ => unimplemented!("{:?}", op),
+                    };
 
-                    stack.push_i32(v1 - v2);
-                }
-                Instruction::I32Mul => {
-                    let v2 = stack.pop_i32()?;
-                    let v1 = stack.pop_i32()?;
-
-                    stack.push_i32(v1 * v2);
-                }
-                Instruction::I32DivS => {
-                    let v2 = stack.pop_i32()?;
-                    let v1 = stack.pop_i32()?;
-
-                    stack.push_i32(v1 / v2);
+                    stack.push_i32(res);
                 }
                 Instruction::I32LtS => {
                     let v2 = stack.pop_i32()?;
@@ -347,7 +338,7 @@ mod tests {
         let add = vec![
             Instruction::I32Const(1),
             Instruction::I32Const(2),
-            Instruction::I32Add,
+            Instruction::I32BinOp(IBinOp::Add),
         ];
         let value = execute_instructions(types, add, vec![]).unwrap();
         assert_eq!(value, vec![Value::I32(3)]);
@@ -362,7 +353,7 @@ mod tests {
         let add = vec![
             Instruction::LocalGet(Idx::from(0)),
             Instruction::LocalGet(Idx::from(1)),
-            Instruction::I32Add,
+            Instruction::I32BinOp(IBinOp::Add),
         ];
         let value = execute_instructions(types, add, vec![Value::I32(4), Value::I32(7)]).unwrap();
         assert_eq!(value, vec![Value::I32(11)]);
@@ -379,7 +370,7 @@ mod tests {
             instructions: vec![
                 Instruction::I32Const(12),
                 Instruction::I32Const(23),
-                Instruction::I32Add,
+                Instruction::I32BinOp(IBinOp::Add),
             ],
         }];
         let value = execute_instructions(types, block, vec![]).unwrap();
@@ -402,11 +393,11 @@ mod tests {
                 instructions: vec![
                     Instruction::LocalGet(Idx::from(1)),
                     Instruction::I32Const(1),
-                    Instruction::I32Add,
+                    Instruction::I32BinOp(IBinOp::Add),
                     Instruction::LocalSet(Idx::from(1)),
                     Instruction::LocalGet(Idx::from(2)),
                     Instruction::LocalGet(Idx::from(1)),
-                    Instruction::I32Add,
+                    Instruction::I32BinOp(IBinOp::Add),
                     Instruction::LocalSet(Idx::from(2)),
                     Instruction::LocalGet(Idx::from(1)),
                     Instruction::LocalGet(Idx::from(0)),
@@ -461,7 +452,7 @@ mod tests {
                     else_instructions: vec![Instruction::I32Const(12)],
                 },
                 Instruction::I32Const(42),
-                Instruction::I32Add,
+                Instruction::I32BinOp(IBinOp::Add),
             ],
         }];
 
@@ -486,13 +477,13 @@ mod tests {
                 else_instructions: vec![
                     Instruction::LocalGet(Idx::from(0)),
                     Instruction::I32Const(-1),
-                    Instruction::I32Add,
+                    Instruction::I32BinOp(IBinOp::Add),
                     Instruction::Call(Idx::from(0)),
                     Instruction::LocalGet(Idx::from(0)),
                     Instruction::I32Const(-2),
-                    Instruction::I32Add,
+                    Instruction::I32BinOp(IBinOp::Add),
                     Instruction::Call(Idx::from(0)),
-                    Instruction::I32Add,
+                    Instruction::I32BinOp(IBinOp::Add),
                 ],
             },
         ];

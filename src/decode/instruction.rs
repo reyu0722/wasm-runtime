@@ -1,5 +1,5 @@
 use super::prelude::*;
-use crate::core::{BlockType, Expression, Instruction, MemArg};
+use crate::core::{BlockType, Expression, IBinOp, Instruction, MemArg};
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::BufRead;
 
@@ -176,13 +176,21 @@ pub trait ReadInstructionExt: BufRead {
                 }
                 Instruction::Numeric(opcode)
             }
+            idx if (0x6a..=0x78).contains(&idx) => {
+                let op = match idx {
+                    0x6a => IBinOp::Add,
+                    0x6b => IBinOp::Sub,
+                    0x6c => IBinOp::Mul,
+                    0x6d => IBinOp::DivS,
+                    _ => IBinOp::TODO(idx),
+                };
+
+                Instruction::I32BinOp(op)
+            }
+
             idx if (0x45..=0xc4).contains(&idx) => match idx {
                 0x47 => Instruction::I32Ne,
                 0x48 => Instruction::I32LtS,
-                0x6a => Instruction::I32Add,
-                0x6b => Instruction::I32Sub,
-                0x6c => Instruction::I32Mul,
-                0x6d => Instruction::I32DivS,
                 _ => Instruction::Numeric(opcode),
             },
 
