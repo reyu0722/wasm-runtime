@@ -1,9 +1,11 @@
 use crate::core::{
-    BlockType, Func, FuncIdx, FuncType, Idx, Instruction, LocalIdx, Module, NumType, TypeIdx,
-    ValueType,
+    BlockType, Func, FuncIdx, FuncType, Idx, Instruction, Module, NumType, TypeIdx, ValueType,
 };
 use anyhow::{bail, ensure, Result};
-use std::{collections::VecDeque, rc::Rc};
+use std::rc::Rc;
+
+mod stack;
+use stack::{Frame, Label, Stack};
 
 pub struct Address<T> {
     pub address: u32,
@@ -56,100 +58,6 @@ impl Value {
     }
 }
 
-pub enum StackEntry<'a> {
-    Value(Value),
-    Label(Label<'a>),
-    Frame(Frame),
-}
-
-pub struct Label<'a> {
-    arity: usize,
-    instr: &'a Vec<Instruction>,
-}
-
-#[derive(Default)]
-pub struct Stack<'a> {
-    data: VecDeque<StackEntry<'a>>,
-}
-
-impl<'a> Stack<'a> {
-    fn push_value(&mut self, value: Value) {
-        self.data.push_front(StackEntry::Value(value));
-    }
-
-    fn push_frame(&mut self, frame: Frame) {
-        self.data.push_front(StackEntry::Frame(frame));
-    }
-
-    fn push_label(&mut self, label: Label<'a>) {
-        self.data.push_front(StackEntry::Label(label));
-    }
-
-    fn push_i32(&mut self, value: i32) {
-        self.push_value(Value::I32(value));
-    }
-
-    fn pop_value(&mut self) -> Result<Value> {
-        let Some(StackEntry::Value(value)) = self.data.pop_front() else {
-            bail!("expected value on stack");
-        };
-
-        Ok(value)
-    }
-
-    fn pop_and_check_value(&mut self, ty: ValueType) -> Result<Value> {
-        let value = self.pop_value()?;
-        ensure!(
-            value.get_type() == ty,
-            "failed to pop value: expected type {:?}",
-            ty
-        );
-        Ok(value)
-    }
-
-    fn pop_and_check_values(&mut self, types: &[ValueType]) -> Result<Vec<Value>> {
-        types
-            .iter()
-            .map(|ty| self.pop_and_check_value(*ty))
-            .collect::<Result<Vec<Value>>>()
-    }
-
-    fn pop_i32(&mut self) -> Result<i32> {
-        let Ok(Value::I32(value)) = self.pop_value() else {
-            bail!("expected i32 on stack");
-        };
-
-        Ok(value)
-    }
-
-    fn pop_label(&mut self) -> Result<Label<'a>> {
-        let Some(StackEntry::Label(label)) = self.data.pop_front() else {
-            bail!("expected label on stack");
-        };
-
-        Ok(label)
-    }
-}
-
-#[derive(Default)]
-pub struct Frame {
-    locals: Vec<Value>,
-}
-
-impl Frame {
-    pub fn get_local(&self, idx: Idx<LocalIdx>) -> Value {
-        self.locals[idx.get() as usize]
-    }
-
-    pub fn set_local(&mut self, idx: Idx<LocalIdx>, value: Value) {
-        if idx.get() as usize >= self.locals.len() {
-            self.locals.resize(idx.get() as usize + 1, Value::I32(0));
-        }
-
-        self.locals[idx.get() as usize] = value;
-    }
-}
-
 enum ExecuteLabelRes {
     Continue,
     Branch(u32),
@@ -189,7 +97,7 @@ impl Store {
     pub fn execute(&self, idx: Idx<FuncIdx>, args: Vec<Value>) -> Result<Vec<Value>> {
         let mut stack = Stack::default();
         let res = self.execute_func(&mut stack, idx, args);
-        ensure!(stack.data.is_empty(), "stack is not empty");
+        ensure!(stack.is_empty(), "stack is not empty");
         res
     }
 
@@ -201,7 +109,7 @@ impl Store {
     ) -> Result<Vec<Value>> {
         let func = &self.funcs[idx.get() as usize];
 
-        let mut frame = Frame { locals };
+        let mut frame = Frame::new(locals);
         self.execute_label(stack, &mut frame, &func.code.body.instructions)?;
 
         let values = stack.pop_and_check_values(&func.ty.results)?;
@@ -231,10 +139,7 @@ impl Store {
                     instructions,
                 } => {
                     let iter = self.get_block_return_type(block_type);
-                    let label = Label {
-                        arity: iter.len(),
-                        instr: instructions,
-                    };
+                    let label = Label::new(iter.len(), instructions);
                     stack.push_label(label);
 
                     let l = self.execute_label(stack, frame, instructions)?;
@@ -262,10 +167,7 @@ impl Store {
                     let ty = self.get_block_return_type(block_type);
 
                     loop {
-                        let label = Label {
-                            arity: ty.len(),
-                            instr: instructions,
-                        };
+                        let label = Label::new(ty.len(), instructions);
                         stack.push_label(label);
 
                         let l = self.execute_label(stack, frame, instructions)?;
@@ -302,10 +204,7 @@ impl Store {
                     };
 
                     let iter = self.get_block_return_type(block_type);
-                    let label = Label {
-                        arity: iter.len(),
-                        instr: instructions,
-                    };
+                    let label = Label::new(iter.len(), instr);
                     stack.push_label(label);
 
                     let l = self.execute_label(stack, frame, instr)?;
@@ -639,7 +538,9 @@ mod tests {
 
         let mut store = Store::default();
         store.instantiate(module);
-        let value = store.execute(Idx::new(1), vec![Value::I32(10), Value::I32(3)]).unwrap();
+        let value = store
+            .execute(Idx::new(1), vec![Value::I32(10), Value::I32(3)])
+            .unwrap();
         assert_eq!(value, vec![Value::I32(120)]);
     }
 }
