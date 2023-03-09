@@ -79,6 +79,7 @@ pub struct FuncType {
     pub results: ResultType,
 }
 
+#[derive(Clone, Debug)]
 pub struct Limits {
     pub min: u32,
     pub max: Option<u32>,
@@ -86,11 +87,13 @@ pub struct Limits {
 
 pub type MemoryType = Limits;
 
+#[derive(Clone, Debug)]
 pub struct TableType {
     pub limits: Limits,
     pub elem_type: RefType,
 }
 
+#[derive(Clone, Debug)]
 pub struct GlobalType {
     pub value_type: ValueType,
     pub mutability: bool,

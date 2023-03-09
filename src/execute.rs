@@ -152,7 +152,7 @@ impl Frame {
 
 enum ExecuteLabelRes {
     Continue,
-    Break(u32),
+    Branch(u32),
 }
 
 #[derive(Default)]
@@ -248,9 +248,9 @@ impl Store {
 
                     match l {
                         ExecuteLabelRes::Continue => {}
-                        ExecuteLabelRes::Break(l) => {
+                        ExecuteLabelRes::Branch(l) => {
                             if l != 0 {
-                                return Ok(ExecuteLabelRes::Break(l - 1));
+                                return Ok(ExecuteLabelRes::Branch(l - 1));
                             }
                         }
                     }
@@ -278,12 +278,12 @@ impl Store {
                         }
 
                         match l {
-                            ExecuteLabelRes::Continue => {}
-                            ExecuteLabelRes::Break(l) => {
+                            ExecuteLabelRes::Continue => {
+                                break;
+                            }
+                            ExecuteLabelRes::Branch(l) => {
                                 if l != 0 {
-                                    return Ok(ExecuteLabelRes::Break(l - 1));
-                                } else {
-                                    break;
+                                    return Ok(ExecuteLabelRes::Branch(l - 1));
                                 }
                             }
                         }
@@ -319,18 +319,18 @@ impl Store {
 
                     match l {
                         ExecuteLabelRes::Continue => {}
-                        ExecuteLabelRes::Break(l) => {
+                        ExecuteLabelRes::Branch(l) => {
                             if l != 0 {
-                                return Ok(ExecuteLabelRes::Break(l - 1));
+                                return Ok(ExecuteLabelRes::Branch(l - 1));
                             }
                         }
                     }
                 }
-                Instruction::Br(idx) => return Ok(ExecuteLabelRes::Break((*idx).into())),
+                Instruction::Br(idx) => return Ok(ExecuteLabelRes::Branch((*idx).into())),
                 Instruction::BrIf(idx) => {
                     let b = stack.pop_i32()?;
                     if b != 0 {
-                        return Ok(ExecuteLabelRes::Break((*idx).into()));
+                        return Ok(ExecuteLabelRes::Branch((*idx).into()));
                     }
                 }
                 Instruction::Call(idx) => {
@@ -369,6 +369,12 @@ impl Store {
                 Instruction::I32Const(i) => {
                     stack.push_i32(*i);
                 }
+                Instruction::I32Ne => {
+                    let v2 = stack.pop_i32()?;
+                    let v1 = stack.pop_i32()?;
+
+                    stack.push_i32((v1 != v2).into());
+                }
                 Instruction::I32Add => {
                     let v2 = stack.pop_i32()?;
                     let v1 = stack.pop_i32()?;
@@ -397,7 +403,7 @@ impl Store {
                     let v2 = stack.pop_i32()?;
                     let v1 = stack.pop_i32()?;
 
-                    stack.push_i32((v1 < v2) as i32);
+                    stack.push_i32((v1 < v2).into());
                 }
 
                 _ => unimplemented!("{:?}", instr),
@@ -488,27 +494,31 @@ mod tests {
             results: vec![ValueType::Num(NumType::I32)],
         }];
         let loop_instr = vec![
+            Instruction::I32Const(0),
+            Instruction::LocalSet(Idx::from(1)),
+            Instruction::I32Const(0),
+            Instruction::LocalSet(Idx::from(2)),
             Instruction::Loop {
                 block_type: BlockType::ValType(None),
                 instructions: vec![
-                    Instruction::LocalGet(Idx::from(0)),
+                    Instruction::LocalGet(Idx::from(1)),
                     Instruction::I32Const(1),
                     Instruction::I32Add,
-                    Instruction::LocalSet(Idx::from(0)),
+                    Instruction::LocalSet(Idx::from(1)),
+                    Instruction::LocalGet(Idx::from(2)),
+                    Instruction::LocalGet(Idx::from(1)),
+                    Instruction::I32Add,
+                    Instruction::LocalSet(Idx::from(2)),
+                    Instruction::LocalGet(Idx::from(1)),
                     Instruction::LocalGet(Idx::from(0)),
-                    Instruction::I32Const(10),
                     Instruction::I32LtS,
-                    Instruction::If {
-                        block_type: BlockType::ValType(None),
-                        instructions: vec![],
-                        else_instructions: vec![Instruction::Br(Idx::from(1))],
-                    },
+                    Instruction::BrIf(Idx::from(0)),
                 ],
             },
-            Instruction::LocalGet(Idx::from(0)),
+            Instruction::LocalGet(Idx::from(2)),
         ];
-        let value = execute_instructions(types, loop_instr, vec![Value::I32(0)]).unwrap();
-        assert_eq!(value, vec![Value::I32(10)]);
+        let value = execute_instructions(types, loop_instr, vec![Value::I32(10)]).unwrap();
+        assert_eq!(value, vec![Value::I32(55)]);
     }
 
     #[test]
@@ -605,5 +615,31 @@ mod tests {
         store.instantiate(module);
         let value = store.execute(Idx::new(1), vec![]).unwrap();
         assert_eq!(value, vec![Value::I32(42)]);
+    }
+
+    #[test]
+    fn test_exec_add() {
+        let file = std::fs::File::open("test/add.wasm").unwrap();
+        let mut reader = std::io::BufReader::new(file);
+        let module = decode(&mut reader).unwrap();
+
+        let mut store = Store::default();
+        store.instantiate(module);
+        let value = store
+            .execute(Idx::new(1), vec![Value::I32(12), Value::I32(23)])
+            .unwrap();
+        assert_eq!(value, vec![Value::I32(35)]);
+    }
+
+    #[test]
+    fn test_exec_combination() {
+        let file = std::fs::File::open("test/combination.wasm").unwrap();
+        let mut reader = std::io::BufReader::new(file);
+        let module = decode(&mut reader).unwrap();
+
+        let mut store = Store::default();
+        store.instantiate(module);
+        let value = store.execute(Idx::new(1), vec![Value::I32(10), Value::I32(3)]).unwrap();
+        assert_eq!(value, vec![Value::I32(120)]);
     }
 }

@@ -3,7 +3,7 @@ use super::{
     ValueType,
 };
 
-#[derive(Default)]
+#[derive(Default, Clone, Debug)]
 pub struct Expression {
     pub instructions: Vec<Instruction>,
 }
@@ -100,12 +100,13 @@ pub enum Instruction {
 
     // numeric instructions
     I32Const(i32),
+    I32Ne,
     I32Add,
     I32Sub,
     I32Mul,
     I32LtS,
     I32DivS,
-    Numeric, // TODO: fix
+    Numeric(u8), // TODO: fix
 
     // vector instructions
     Vector, // TODO: fix

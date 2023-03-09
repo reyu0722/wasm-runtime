@@ -160,36 +160,37 @@ pub trait ReadInstructionExt: BufRead {
             0x42 => {
                 // i64.const
                 self.read_signed_leb128(64)?;
-                Instruction::Numeric
+                Instruction::Numeric(opcode)
             }
             0x43 => {
                 // f32.const
                 for _ in 0..4 {
                     self.read_byte()?;
                 }
-                Instruction::Numeric
+                Instruction::Numeric(opcode)
             }
             0x44 => {
                 // f64.const
                 for _ in 0..8 {
                     self.read_byte()?;
                 }
-                Instruction::Numeric
+                Instruction::Numeric(opcode)
             }
             idx if (0x45..=0xc4).contains(&idx) => match idx {
+                0x47 => Instruction::I32Ne,
                 0x48 => Instruction::I32LtS,
                 0x6a => Instruction::I32Add,
                 0x6b => Instruction::I32Sub,
                 0x6c => Instruction::I32Mul,
                 0x6d => Instruction::I32DivS,
-                _ => Instruction::Numeric,
+                _ => Instruction::Numeric(opcode),
             },
 
             0xfc => {
                 let kind = self.read_u32()?;
                 match kind {
                     // numeric instructions
-                    kind if kind <= 0x07 => Instruction::Numeric,
+                    kind if kind <= 0x07 => Instruction::Numeric(opcode),
 
                     // memory instructions
                     0x08 => {
