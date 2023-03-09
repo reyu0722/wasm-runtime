@@ -360,6 +360,11 @@ impl Store {
                     let v = stack.pop_value()?;
                     frame.set_local(*idx, v);
                 }
+                Instruction::LocalTee(idx) => {
+                    let v = stack.pop_value()?;
+                    frame.set_local(*idx, v);
+                    stack.push_value(v);
+                }
 
                 Instruction::I32Const(i) => {
                     stack.push_i32(*i);
@@ -381,6 +386,12 @@ impl Store {
                     let v1 = stack.pop_i32()?;
 
                     stack.push_i32(v1 * v2);
+                }
+                Instruction::I32DivS => {
+                    let v2 = stack.pop_i32()?;
+                    let v1 = stack.pop_i32()?;
+
+                    stack.push_i32(v1 / v2);
                 }
                 Instruction::I32LtS => {
                     let v2 = stack.pop_i32()?;

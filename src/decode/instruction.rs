@@ -181,6 +181,7 @@ pub trait ReadInstructionExt: BufRead {
                 0x6a => Instruction::I32Add,
                 0x6b => Instruction::I32Sub,
                 0x6c => Instruction::I32Mul,
+                0x6d => Instruction::I32DivS,
                 _ => Instruction::Numeric,
             },
 

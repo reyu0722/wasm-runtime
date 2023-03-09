@@ -104,6 +104,7 @@ pub enum Instruction {
     I32Sub,
     I32Mul,
     I32LtS,
+    I32DivS,
     Numeric, // TODO: fix
 
     // vector instructions
