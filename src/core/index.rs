@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+#[derive(Debug)]
 pub struct Idx<T> {
     pub index: u32,
     _phantom: PhantomData<fn() -> T>,
@@ -38,12 +39,21 @@ impl<T> Clone for Idx<T> {
 
 impl<T> Copy for Idx<T> {}
 
+#[derive(Debug)]
 pub struct TypeIdx;
+#[derive(Debug)]
 pub struct FuncIdx;
+#[derive(Debug)]
 pub struct TableIdx;
+#[derive(Debug)]
 pub struct MemIdx;
+#[derive(Debug)]
 pub struct GlobalIdx;
+#[derive(Debug)]
 pub struct ElemIdx;
+#[derive(Debug)]
 pub struct DataIdx;
+#[derive(Debug)]
 pub struct LabelIdx;
+#[derive(Debug)]
 pub struct LocalIdx;

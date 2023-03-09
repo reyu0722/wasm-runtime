@@ -142,6 +142,10 @@ impl Frame {
     }
 
     pub fn set_local(&mut self, idx: Idx<LocalIdx>, value: Value) {
+        if idx.get() as usize >= self.locals.len() {
+            self.locals.resize(idx.get() as usize + 1, Value::I32(0));
+        }
+
         self.locals[idx.get() as usize] = value;
     }
 }
@@ -323,6 +327,12 @@ impl Store {
                     }
                 }
                 Instruction::Br(idx) => return Ok(ExecuteLabelRes::Break((*idx).into())),
+                Instruction::BrIf(idx) => {
+                    let b = stack.pop_i32()?;
+                    if b != 0 {
+                        return Ok(ExecuteLabelRes::Break((*idx).into()));
+                    }
+                }
                 Instruction::Call(idx) => {
                     let ty = &self.funcs[idx.get() as usize].ty;
 
@@ -360,7 +370,18 @@ impl Store {
 
                     stack.push_i32(v1 + v2);
                 }
+                Instruction::I32Sub => {
+                    let v2 = stack.pop_i32()?;
+                    let v1 = stack.pop_i32()?;
 
+                    stack.push_i32(v1 - v2);
+                }
+                Instruction::I32Mul => {
+                    let v2 = stack.pop_i32()?;
+                    let v1 = stack.pop_i32()?;
+
+                    stack.push_i32(v1 * v2);
+                }
                 Instruction::I32LtS => {
                     let v2 = stack.pop_i32()?;
                     let v1 = stack.pop_i32()?;
@@ -368,7 +389,7 @@ impl Store {
                     stack.push_i32((v1 < v2) as i32);
                 }
 
-                _ => unimplemented!(),
+                _ => unimplemented!("{:?}", instr),
             }
         }
         Ok(ExecuteLabelRes::Continue)

@@ -73,7 +73,7 @@ impl TryFrom<u8> for ValueType {
 
 pub type ResultType = Vec<ValueType>;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FuncType {
     pub params: ResultType,
     pub results: ResultType,
