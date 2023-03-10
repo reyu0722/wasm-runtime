@@ -199,7 +199,7 @@ pub trait ReadInstructionExt: BufRead {
                 Instruction::I32BinOp(op)
             }
 
-            idx if (0x45..=0x4f).contains(&idx) => {
+            idx if (0x46..=0x4f).contains(&idx) => {
                 let op = match idx {
                     0x46 => IRelOp::Eq,
                     0x47 => IRelOp::Ne,
