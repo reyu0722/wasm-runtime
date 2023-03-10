@@ -1,5 +1,5 @@
 use crate::core::{
-    BlockType, Func, FuncIdx, FuncType, IBinOp, Idx, Instruction, Module, NumType, TypeIdx,
+    BlockType, Func, FuncIdx, FuncType, IBinOp, IRelOp, Idx, Instruction, Module, NumType, TypeIdx,
     ValueType,
 };
 use anyhow::{bail, ensure, Result};
@@ -269,12 +269,6 @@ impl Store {
                 Instruction::I32Const(i) => {
                     stack.push_i32(*i);
                 }
-                Instruction::I32Ne => {
-                    let v2 = stack.pop_i32()?;
-                    let v1 = stack.pop_i32()?;
-
-                    stack.push_i32((v1 != v2).into());
-                }
                 Instruction::I32BinOp(op) => {
                     let v2 = stack.pop_i32()?;
                     let v1 = stack.pop_i32()?;
@@ -289,11 +283,17 @@ impl Store {
 
                     stack.push_i32(res);
                 }
-                Instruction::I32LtS => {
+                Instruction::I32RelOp(op) => {
                     let v2 = stack.pop_i32()?;
                     let v1 = stack.pop_i32()?;
 
-                    stack.push_i32((v1 < v2).into());
+                    let res = match op {
+                        IRelOp::Ne => (v1 != v2) as i32,
+                        IRelOp::LtS => (v1 < v2) as i32,
+                        _ => unimplemented!("{:?}", op),
+                    };
+
+                    stack.push_i32(res);
                 }
 
                 _ => unimplemented!("{:?}", instr),
@@ -401,7 +401,7 @@ mod tests {
                     Instruction::LocalSet(Idx::from(2)),
                     Instruction::LocalGet(Idx::from(1)),
                     Instruction::LocalGet(Idx::from(0)),
-                    Instruction::I32LtS,
+                    Instruction::I32RelOp(IRelOp::LtS),
                     Instruction::BrIf(Idx::from(0)),
                 ],
             },
@@ -470,7 +470,7 @@ mod tests {
         let fib = vec![
             Instruction::LocalGet(Idx::from(0)),
             Instruction::I32Const(3),
-            Instruction::I32LtS,
+            Instruction::I32RelOp(IRelOp::LtS),
             Instruction::If {
                 block_type: BlockType::ValType(Some(ValueType::Num(NumType::I32))),
                 instructions: vec![Instruction::I32Const(1)],
