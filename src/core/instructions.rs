@@ -114,7 +114,17 @@ pub enum IBinOp {
     Sub,
     Mul,
     DivS,
-    TODO(u8),
+    DivU,
+    RemS,
+    RemU,
+    And,
+    Or,
+    Xor,
+    Shl,
+    ShrS,
+    ShrU,
+    Rotl,
+    Rotr,
 }
 
 #[derive(Clone, Debug)]

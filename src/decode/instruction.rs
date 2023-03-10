@@ -182,7 +182,18 @@ pub trait ReadInstructionExt: BufRead {
                     0x6b => IBinOp::Sub,
                     0x6c => IBinOp::Mul,
                     0x6d => IBinOp::DivS,
-                    _ => IBinOp::TODO(idx),
+                    0x6e => IBinOp::DivU,
+                    0x6f => IBinOp::RemS,
+                    0x70 => IBinOp::RemU,
+                    0x71 => IBinOp::And,
+                    0x72 => IBinOp::Or,
+                    0x73 => IBinOp::Xor,
+                    0x74 => IBinOp::Shl,
+                    0x75 => IBinOp::ShrS,
+                    0x76 => IBinOp::ShrU,
+                    0x77 => IBinOp::Rotl,
+                    0x78 => IBinOp::Rotr,
+                    _ => unreachable!("checked above"),
                 };
 
                 Instruction::I32BinOp(op)
