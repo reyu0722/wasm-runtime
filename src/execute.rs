@@ -514,7 +514,7 @@ mod tests {
 
     #[test]
     fn test_decode_and_exec() {
-        let file = std::fs::File::open("test/test.wasm").unwrap();
+        let file = std::fs::File::open("tests/test.wasm").unwrap();
         let mut reader = std::io::BufReader::new(file);
         let module = decode(&mut reader).unwrap();
 
@@ -526,7 +526,7 @@ mod tests {
 
     #[test]
     fn test_exec_add() {
-        let file = std::fs::File::open("test/add.wasm").unwrap();
+        let file = std::fs::File::open("tests/add.wasm").unwrap();
         let mut reader = std::io::BufReader::new(file);
         let module = decode(&mut reader).unwrap();
 
@@ -540,7 +540,7 @@ mod tests {
 
     #[test]
     fn test_exec_combination() {
-        let file = std::fs::File::open("test/combination.wasm").unwrap();
+        let file = std::fs::File::open("tests/combination.wasm").unwrap();
         let mut reader = std::io::BufReader::new(file);
         let module = decode(&mut reader).unwrap();
 

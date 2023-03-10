@@ -36,7 +36,7 @@ mod tests {
 
     #[test]
     fn test() {
-        let f = File::open("test/add.wasm").unwrap();
+        let f = File::open("tests/add.wasm").unwrap();
         let mut buf = BufReader::new(f);
         decode(&mut buf).unwrap();
     }
