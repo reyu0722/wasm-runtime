@@ -201,9 +201,17 @@ pub trait ReadInstructionExt: BufRead {
 
             idx if (0x45..=0x4f).contains(&idx) => {
                 let op = match idx {
+                    0x46 => IRelOp::Eq,
                     0x47 => IRelOp::Ne,
                     0x48 => IRelOp::LtS,
-                    _ => IRelOp::TODO(idx),
+                    0x49 => IRelOp::LtU,
+                    0x4a => IRelOp::GtS,
+                    0x4b => IRelOp::GtU,
+                    0x4c => IRelOp::LeS,
+                    0x4d => IRelOp::LeU,
+                    0x4e => IRelOp::GeS,
+                    0x4f => IRelOp::GeU,
+                    _ => unreachable!("checked above"),
                 };
 
                 Instruction::I32RelOp(op)

@@ -129,7 +129,14 @@ pub enum IBinOp {
 
 #[derive(Clone, Debug)]
 pub enum IRelOp {
+    Eq,
     Ne,
     LtS,
-    TODO(u8),
+    LtU,
+    GtS,
+    GtU,
+    LeS,
+    LeU,
+    GeS,
+    GeU,
 }

@@ -298,12 +298,19 @@ impl Store {
                     let v1 = stack.pop_i32()?;
 
                     let res = match op {
-                        IRelOp::Ne => (v1 != v2) as i32,
-                        IRelOp::LtS => (v1 < v2) as i32,
-                        _ => unimplemented!("{:?}", op),
+                        IRelOp::Eq => v1 == v2,
+                        IRelOp::Ne => v1 != v2,
+                        IRelOp::LtS => v1 < v2,
+                        IRelOp::LtU => (v1 as u32) < v2 as u32,
+                        IRelOp::GtS => v1 > v2,
+                        IRelOp::GtU => v1 as u32 > v2 as u32,
+                        IRelOp::LeS => v1 <= v2,
+                        IRelOp::LeU => v1 as u32 <= v2 as u32,
+                        IRelOp::GeS => v1 >= v2,
+                        IRelOp::GeU => v1 as u32 >= v2 as u32,
                     };
 
-                    stack.push_i32(res);
+                    stack.push_i32(res as i32);
                 }
 
                 _ => unimplemented!("{:?}", instr),
