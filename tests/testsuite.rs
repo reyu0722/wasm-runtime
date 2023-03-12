@@ -16,51 +16,55 @@ testsuite!(i32);
 
 #[macro_export]
 macro_rules! testsuite {
-    ($($f: ident), *) => { $(
-        paste! {
+    ($($f: ident), *) => {
+        $(paste! {
             #[test]
-            fn [< test_ $f >]() {
-                let mut f = File::open(format!("tests/testsuite/{}.wast", stringify!($f))).unwrap();
-                let mut b = vec![];
-                f.read_to_end(&mut b).unwrap();
-                let s = std::str::from_utf8(&b).unwrap();
+            fn [< testsuite_ $f >]() {
+                test_wast(format!("tests/testsuite/{}.wast", stringify!($f)).as_str());
+            }
+        })*
+    };
+}
 
-                let buf = ParseBuffer::new(s).unwrap();
-                let wast = parse::<wast::Wast>(&buf).unwrap();
-                let mut module = Module::default();
+fn test_wast(filename: &str) {
+    let mut f = File::open(filename).unwrap();
+    let mut b = vec![];
+    f.read_to_end(&mut b).unwrap();
+    let s = std::str::from_utf8(&b).unwrap();
 
-                for dir in wast.directives {
-                    match dir {
-                        WastDirective::Wat(mut wat) => {
-                            let bin = wat.encode().unwrap();
-                            module = decode(&mut Cursor::new(bin)).unwrap();
-                        }
-                        WastDirective::AssertReturn { exec, results, .. } => {
-                            let mut store = Store::default();
-                            store.instantiate(module.clone());
+    let buf = ParseBuffer::new(s).unwrap();
+    let wast = parse::<wast::Wast>(&buf).unwrap();
+    let mut module = Module::default();
 
-                            let WastExecute::Invoke(WastInvoke { name, args, .. }) = exec else {
+    for dir in wast.directives {
+        match dir {
+            WastDirective::Wat(mut wat) => {
+                let bin = wat.encode().unwrap();
+                module = decode(&mut Cursor::new(bin)).unwrap();
+            }
+            WastDirective::AssertReturn { exec, results, .. } => {
+                let mut store = Store::default();
+                store.instantiate(module.clone());
+
+                let WastExecute::Invoke(WastInvoke { name, args, .. }) = exec else {
                                                         unimplemented!()
                                                     };
-                            println!("name: {}, args: {:?}", name, args);
+                println!("name: {}, args: {:?}", name, args);
 
-                            let args = args.into_iter().map(wast_arg_to_value).collect::<Vec<_>>();
+                let args = args.into_iter().map(wast_arg_to_value).collect::<Vec<_>>();
 
-                            let expected = results
-                                .into_iter()
-                                .map(wast_ret_to_value)
-                                .collect::<Vec<_>>();
+                let expected = results
+                    .into_iter()
+                    .map(wast_ret_to_value)
+                    .collect::<Vec<_>>();
 
-                            let actual = store.invoke(name, args).unwrap();
+                let actual = store.invoke(name, args).unwrap();
 
-                            assert_eq!(actual, expected);
-                        }
-                        _ => {}
-                    }
-                }
+                assert_eq!(actual, expected);
             }
+            _ => {}
         }
-    )*};
+    }
 }
 
 fn wast_arg_to_value(arg: WastArg) -> Value {
