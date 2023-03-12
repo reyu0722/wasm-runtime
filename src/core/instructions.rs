@@ -100,6 +100,8 @@ pub enum Instruction {
 
     // numeric instructions
     I32Const(i32),
+    I32UnOp(IUnOp),
+    I32Eqz,
     I32BinOp(IBinOp),
     I32RelOp(IRelOp),
     Numeric(u8), // TODO: fix
@@ -107,6 +109,15 @@ pub enum Instruction {
     // vector instructions
     Vector, // TODO: fix
 }
+
+
+#[derive(Clone, Debug)]
+pub enum IUnOp {
+    Clz,
+    Ctz,
+    Popcnt,
+}
+
 
 #[derive(Clone, Debug)]
 pub enum IBinOp {

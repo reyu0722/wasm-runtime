@@ -1,6 +1,6 @@
 use crate::core::{
-    BlockType, Export, ExportDesc, Func, FuncIdx, FuncType, IBinOp, IRelOp, Idx, Instruction,
-    Module, NumType, TypeIdx, ValueType,
+    BlockType, Export, ExportDesc, Func, FuncIdx, FuncType, IBinOp, IRelOp, IUnOp, Idx,
+    Instruction, Module, NumType, TypeIdx, ValueType,
 };
 use anyhow::{bail, ensure, Result};
 use std::rc::Rc;
@@ -285,6 +285,19 @@ impl Store {
 
                 Instruction::I32Const(i) => {
                     stack.push_i32(*i);
+                }
+                Instruction::I32UnOp(op) => {
+                    let v = stack.pop_i32()?;
+                    let res = match op {
+                        IUnOp::Clz => v.leading_zeros(),
+                        IUnOp::Ctz => v.trailing_zeros(),
+                        IUnOp::Popcnt => v.count_ones(),
+                    };
+                    stack.push_i32(res as i32);
+                }
+                Instruction::I32Eqz => {
+                    let v = stack.pop_i32()?;
+                    stack.push_i32((v == 0).into());
                 }
                 Instruction::I32BinOp(op) => {
                     let v2 = stack.pop_i32()?;

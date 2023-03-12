@@ -1,5 +1,5 @@
 use super::prelude::*;
-use crate::core::{BlockType, Expression, IBinOp, IRelOp, Instruction, MemArg};
+use crate::core::{BlockType, Expression, IBinOp, IRelOp, Instruction, MemArg, IUnOp};
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::BufRead;
 
@@ -176,6 +176,35 @@ pub trait ReadInstructionExt: BufRead {
                 }
                 Instruction::Numeric(opcode)
             }
+
+            0x45 => Instruction::I32Eqz,
+            idx if (0x46..=0x4f).contains(&idx) => {
+                let op = match idx {
+                    0x46 => IRelOp::Eq,
+                    0x47 => IRelOp::Ne,
+                    0x48 => IRelOp::LtS,
+                    0x49 => IRelOp::LtU,
+                    0x4a => IRelOp::GtS,
+                    0x4b => IRelOp::GtU,
+                    0x4c => IRelOp::LeS,
+                    0x4d => IRelOp::LeU,
+                    0x4e => IRelOp::GeS,
+                    0x4f => IRelOp::GeU,
+                    _ => unreachable!("checked above"),
+                };
+
+                Instruction::I32RelOp(op)
+            }
+            idx if (0x67..=0x69).contains(&idx) => {
+                let op = match idx {
+                    0x67 => IUnOp::Clz,
+                    0x68 => IUnOp::Ctz,
+                    0x69 => IUnOp::Popcnt,
+                    _ => unreachable!("checked above"),
+                };
+
+                Instruction::I32UnOp(op)
+            }
             idx if (0x6a..=0x78).contains(&idx) => {
                 let op = match idx {
                     0x6a => IBinOp::Add,
@@ -197,24 +226,6 @@ pub trait ReadInstructionExt: BufRead {
                 };
 
                 Instruction::I32BinOp(op)
-            }
-
-            idx if (0x46..=0x4f).contains(&idx) => {
-                let op = match idx {
-                    0x46 => IRelOp::Eq,
-                    0x47 => IRelOp::Ne,
-                    0x48 => IRelOp::LtS,
-                    0x49 => IRelOp::LtU,
-                    0x4a => IRelOp::GtS,
-                    0x4b => IRelOp::GtU,
-                    0x4c => IRelOp::LeS,
-                    0x4d => IRelOp::LeU,
-                    0x4e => IRelOp::GeS,
-                    0x4f => IRelOp::GeU,
-                    _ => unreachable!("checked above"),
-                };
-
-                Instruction::I32RelOp(op)
             }
 
             idx if (0x45..=0xc4).contains(&idx) => Instruction::Numeric(opcode),
