@@ -1,7 +1,7 @@
-use anyhow::Result;
+use std::fs::File;
 use std::io::{Cursor, Read};
 use wasm_runtime::{
-    core::{Idx, Module},
+    core::Module,
     decode::decode,
     execute::{Store, Value},
 };
@@ -13,7 +13,7 @@ use wast::{
 
 #[test]
 fn test_i32() {
-    let mut f = std::fs::File::open("tests/testsuite/i32.wast").unwrap();
+    let mut f = File::open("tests/testsuite/i32.wast").unwrap();
     let mut b = vec![];
     f.read_to_end(&mut b).unwrap();
     let s = std::str::from_utf8(&b).unwrap();
@@ -32,21 +32,16 @@ fn test_i32() {
                 let mut store = Store::default();
                 store.instantiate(module.clone());
 
-                let (name, args) = match exec {
-                    WastExecute::Invoke(WastInvoke { name, args, .. }) => (name, args),
-                    _ => unimplemented!(),
+                let WastExecute::Invoke(WastInvoke { name, args, .. }) = exec else {
+                    unimplemented!()
                 };
-
                 println!("name: {}, args: {:?}", name, args);
 
-                let args = args
-                    .into_iter()
-                    .map(|a| wast_arg_to_value(a).unwrap())
-                    .collect::<Vec<_>>();
+                let args = args.into_iter().map(wast_arg_to_value).collect::<Vec<_>>();
 
                 let expected = results
                     .into_iter()
-                    .map(|r| wast_ret_to_value(r).unwrap())
+                    .map(wast_ret_to_value)
                     .collect::<Vec<_>>();
 
                 let actual = store.invoke(name, args).unwrap();
@@ -58,18 +53,18 @@ fn test_i32() {
     }
 }
 
-fn wast_arg_to_value(arg: WastArg) -> Result<Value> {
+fn wast_arg_to_value(arg: WastArg) -> Value {
     match arg {
-        WastArg::Core(WastArgCore::I32(v)) => Ok(Value::I32(v)),
-        WastArg::Core(WastArgCore::I64(v)) => Ok(Value::I64(v)),
+        WastArg::Core(WastArgCore::I32(v)) => Value::I32(v),
+        WastArg::Core(WastArgCore::I64(v)) => Value::I64(v),
         _ => unimplemented!(),
     }
 }
 
-fn wast_ret_to_value(ret: WastRet) -> Result<Value> {
+fn wast_ret_to_value(ret: WastRet) -> Value {
     match ret {
-        WastRet::Core(WastRetCore::I32(v)) => Ok(Value::I32(v)),
-        WastRet::Core(WastRetCore::I64(v)) => Ok(Value::I64(v)),
+        WastRet::Core(WastRetCore::I32(v)) => Value::I32(v),
+        WastRet::Core(WastRetCore::I64(v)) => Value::I64(v),
         _ => unimplemented!(),
     }
 }

@@ -6,17 +6,20 @@ use std::collections::VecDeque;
 pub enum StackEntry<'a> {
     Value(Value),
     Label(Label<'a>),
-    Frame(Frame),
+    // Frame(Frame),
 }
 
 pub struct Label<'a> {
-    arity: usize,
-    instr: &'a Vec<Instruction>,
+    _arity: usize,
+    _instr: &'a Vec<Instruction>,
 }
 
 impl<'a> Label<'a> {
     pub fn new(arity: usize, instr: &'a Vec<Instruction>) -> Self {
-        Label { arity, instr }
+        Label {
+            _arity: arity,
+            _instr: instr,
+        }
     }
 }
 
@@ -28,10 +31,6 @@ pub struct Stack<'a> {
 impl<'a> Stack<'a> {
     pub fn push_value(&mut self, value: Value) {
         self.data.push_front(StackEntry::Value(value));
-    }
-
-    pub fn push_frame(&mut self, frame: Frame) {
-        self.data.push_front(StackEntry::Frame(frame));
     }
 
     pub fn push_label(&mut self, label: Label<'a>) {
