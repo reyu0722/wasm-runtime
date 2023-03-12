@@ -1,6 +1,6 @@
 use crate::core::{
-    BlockType, Func, FuncIdx, FuncType, IBinOp, IRelOp, Idx, Instruction, Module, NumType, TypeIdx,
-    ValueType,
+    BlockType, Export, ExportDesc, Func, FuncIdx, FuncType, IBinOp, IRelOp, Idx, Instruction,
+    Module, NumType, TypeIdx, ValueType,
 };
 use anyhow::{bail, ensure, Result};
 use std::rc::Rc;
@@ -67,6 +67,7 @@ enum ExecuteLabelRes {
 #[derive(Default)]
 pub struct Store {
     funcs: Vec<FuncInstance>,
+    exports: Vec<Export>,
 }
 
 impl Store {
@@ -88,11 +89,27 @@ impl Store {
             instance.func_addrs.push(addr);
         }
 
+        for e in module.exports {
+            self.exports.push(e);
+        }
+
         instance
     }
 
     pub fn instantiate(&mut self, module: Module) {
         self.alloc_module(module);
+    }
+
+    pub fn invoke(&self, name: &str, args: Vec<Value>) -> Result<Vec<Value>> {
+        for e in &self.exports {
+            if e.name.as_str() == name {
+                if let ExportDesc::Func(idx) = e.desc {
+                    return self.execute(idx, args);
+                }
+            }
+        }
+
+        bail!("function not found: {}", name)
     }
 
     pub fn execute(&self, idx: Idx<FuncIdx>, args: Vec<Value>) -> Result<Vec<Value>> {
@@ -274,7 +291,7 @@ impl Store {
                     let v1 = stack.pop_i32()?;
 
                     let res = match op {
-                        IBinOp::Add => v1 + v2,
+                        IBinOp::Add => v1.wrapping_add(v2),
                         IBinOp::Sub => v1 - v2,
                         IBinOp::Mul => v1 * v2,
                         IBinOp::DivS => v1 / v2,

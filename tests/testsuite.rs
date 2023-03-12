@@ -49,7 +49,7 @@ fn test_i32() {
                     .map(|r| wast_ret_to_value(r).unwrap())
                     .collect::<Vec<_>>();
 
-                let actual = store.execute(Idx::from(0), args).unwrap();
+                let actual = store.invoke(name, args).unwrap();
 
                 assert_eq!(actual, expected);
             }
