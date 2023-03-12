@@ -112,14 +112,12 @@ pub enum Instruction {
     Vector, // TODO: fix
 }
 
-
 #[derive(Clone, Debug)]
 pub enum IUnOp {
     Clz,
     Ctz,
     Popcnt,
 }
-
 
 #[derive(Clone, Debug)]
 pub enum IBinOp {

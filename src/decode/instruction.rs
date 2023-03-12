@@ -1,5 +1,5 @@
 use super::prelude::*;
-use crate::core::{BlockType, Expression, IBinOp, IRelOp, Instruction, MemArg, IUnOp};
+use crate::core::{BlockType, Expression, IBinOp, IRelOp, IUnOp, Instruction, MemArg};
 use anyhow::{bail, ensure, Context as _, Result};
 use std::io::BufRead;
 
