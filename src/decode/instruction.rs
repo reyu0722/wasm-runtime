@@ -228,6 +228,29 @@ pub trait ReadInstructionExt: BufRead {
                 Instruction::I32BinOp(op)
             }
 
+            idx if (0x7c..=0x8a).contains(&idx) => {
+                let op = match idx {
+                    0x7c => IBinOp::Add,
+                    0x7d => IBinOp::Sub,
+                    0x7e => IBinOp::Mul,
+                    0x7f => IBinOp::DivS,
+                    0x80 => IBinOp::DivU,
+                    0x81 => IBinOp::RemS,
+                    0x82 => IBinOp::RemU,
+                    0x83 => IBinOp::And,
+                    0x84 => IBinOp::Or,
+                    0x85 => IBinOp::Xor,
+                    0x86 => IBinOp::Shl,
+                    0x87 => IBinOp::ShrS,
+                    0x88 => IBinOp::ShrU,
+                    0x89 => IBinOp::Rotl,
+                    0x8a => IBinOp::Rotr,
+                    _ => unreachable!("checked above"),
+                };
+
+                Instruction::I64BinOp(op)
+            }
+
             idx if (0x45..=0xc4).contains(&idx) => Instruction::Numeric(opcode.into()),
 
             0xfc => {

@@ -378,6 +378,53 @@ impl Store {
                 Instruction::I64Const(i) => {
                     stack.push_i64(*i);
                 }
+                Instruction::I64BinOp(op) => {
+                    let v2 = stack.pop_i64()?;
+                    let v1 = stack.pop_i64()?;
+
+                    let res = match op {
+                        IBinOp::Add => v1.wrapping_add(v2),
+                        IBinOp::Sub => v1.wrapping_sub(v2),
+                        IBinOp::Mul => v1.wrapping_mul(v2),
+                        IBinOp::DivS => {
+                            if v2 == 0 {
+                                bail!("division by zero")
+                            }
+                            if v1 == i64::MIN && v2 == -1 {
+                                bail!("overflow")
+                            }
+                            v1.wrapping_div(v2)
+                        }
+                        IBinOp::DivU => {
+                            if v2 == 0 {
+                                bail!("division by zero")
+                            }
+                            (v1 as u64 / v2 as u64) as i64
+                        }
+                        IBinOp::RemS => {
+                            if v2 == 0 {
+                                bail!("division by zero")
+                            }
+                            v1.wrapping_rem(v2)
+                        }
+                        IBinOp::RemU => {
+                            if v2 == 0 {
+                                bail!("division by zero")
+                            }
+                            (v1 as u64 % v2 as u64) as i64
+                        }
+                        IBinOp::And => v1 & v2,
+                        IBinOp::Or => v1 | v2,
+                        IBinOp::Xor => v1 ^ v2,
+                        IBinOp::Shl => v1.wrapping_shl(v2 as u32),
+                        IBinOp::ShrS => v1.wrapping_shr(v2 as u32),
+                        IBinOp::ShrU => (v1 as u64).wrapping_shr(v2 as u32) as i64,
+                        IBinOp::Rotl => v1.rotate_left(v2 as u32),
+                        IBinOp::Rotr => v1.rotate_right(v2 as u32),
+                    };
+
+                    stack.push_i64(res);
+                }
 
                 _ => unimplemented!("{:?}", instr),
             }
