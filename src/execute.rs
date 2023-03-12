@@ -375,6 +375,10 @@ impl Store {
                     stack.push_i32(res as i32);
                 }
 
+                Instruction::I64Const(i) => {
+                    stack.push_i64(*i);
+                }
+
                 _ => unimplemented!("{:?}", instr),
             }
         }

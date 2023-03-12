@@ -123,6 +123,8 @@ pub enum Instruction {
     I32Eqz,
     I32BinOp(IBinOp),
     I32RelOp(IRelOp),
+
+    I64Const(i64),
     Numeric(OpCode), // TODO: fix
 
     // vector instructions

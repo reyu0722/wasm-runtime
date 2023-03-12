@@ -153,14 +153,12 @@ pub trait ReadInstructionExt: BufRead {
 
             // numeric instructions
             0x41 => {
-                // i32.const
                 let v = self.read_signed_leb128(32)?.try_into()?;
                 Instruction::I32Const(v)
             }
             0x42 => {
-                // i64.const
-                self.read_signed_leb128(64)?;
-                Instruction::Numeric(opcode.into())
+                let v = self.read_signed_leb128(64)?;
+                Instruction::I64Const(v)
             }
             0x43 => {
                 // f32.const

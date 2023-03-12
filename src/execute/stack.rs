@@ -41,6 +41,10 @@ impl<'a> Stack<'a> {
         self.push_value(Value::I32(value));
     }
 
+    pub fn push_i64(&mut self, value: i64) {
+        self.push_value(Value::I64(value));
+    }
+
     pub fn pop_value(&mut self) -> Result<Value> {
         let Some(StackEntry::Value(value)) = self.data.pop_front() else {
             bail!("expected value on stack");
@@ -69,6 +73,14 @@ impl<'a> Stack<'a> {
     pub fn pop_i32(&mut self) -> Result<i32> {
         let Ok(Value::I32(value)) = self.pop_value() else {
             bail!("expected i32 on stack");
+        };
+
+        Ok(value)
+    }
+
+    pub fn pop_i64(&mut self) -> Result<i64> {
+        let Ok(Value::I64(value)) = self.pop_value() else {
+            bail!("expected i64 on stack");
         };
 
         Ok(value)
