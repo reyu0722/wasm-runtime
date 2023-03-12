@@ -177,6 +177,8 @@ pub trait ReadInstructionExt: BufRead {
                 Instruction::Numeric(opcode)
             }
 
+            0xc0 => Instruction::I32Extend8S,
+            0xc1 => Instruction::I32Extend16S,
             0x45 => Instruction::I32Eqz,
             idx if (0x46..=0x4f).contains(&idx) => {
                 let op = match idx {

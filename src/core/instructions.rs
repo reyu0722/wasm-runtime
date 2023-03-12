@@ -100,6 +100,8 @@ pub enum Instruction {
 
     // numeric instructions
     I32Const(i32),
+    I32Extend8S,
+    I32Extend16S,
     I32UnOp(IUnOp),
     I32Eqz,
     I32BinOp(IBinOp),

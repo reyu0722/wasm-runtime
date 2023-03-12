@@ -3,6 +3,7 @@ use crate::core::{
     Instruction, Module, NumType, TypeIdx, ValueType,
 };
 use anyhow::{bail, ensure, Result};
+use byteorder::{BigEndian, ReadBytesExt};
 use std::rc::Rc;
 
 mod stack;
@@ -285,6 +286,14 @@ impl Store {
 
                 Instruction::I32Const(i) => {
                     stack.push_i32(*i);
+                }
+                Instruction::I32Extend8S => {
+                    let v = stack.pop_i32()?;
+                    stack.push_i32((&v.to_be_bytes()[3..4]).read_i8()? as i32);
+                }
+                Instruction::I32Extend16S => {
+                    let v = stack.pop_i32()?;
+                    stack.push_i32((&v.to_be_bytes()[2..4]).read_i16::<BigEndian>()? as i32);
                 }
                 Instruction::I32UnOp(op) => {
                     let v = stack.pop_i32()?;
