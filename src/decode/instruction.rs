@@ -228,6 +228,16 @@ pub trait ReadInstructionExt: BufRead {
                 Instruction::I32BinOp(op)
             }
 
+            idx if (0x79..=0x7b).contains(&idx) => {
+                let op = match idx {
+                    0x79 => IUnOp::Clz,
+                    0x7a => IUnOp::Ctz,
+                    0x7b => IUnOp::Popcnt,
+                    _ => unreachable!("checked above"),
+                };
+
+                Instruction::I64UnOp(op)
+            }
             idx if (0x7c..=0x8a).contains(&idx) => {
                 let op = match idx {
                     0x7c => IBinOp::Add,

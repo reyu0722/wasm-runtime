@@ -425,6 +425,15 @@ impl Store {
 
                     stack.push_i64(res);
                 }
+                Instruction::I64UnOp(op) => {
+                    let v = stack.pop_i64()?;
+                    let res = match op {
+                        IUnOp::Clz => v.leading_zeros(),
+                        IUnOp::Ctz => v.trailing_zeros(),
+                        IUnOp::Popcnt => v.count_ones(),
+                    };
+                    stack.push_i64(res as i64);
+                }
 
                 _ => unimplemented!("{:?}", instr),
             }

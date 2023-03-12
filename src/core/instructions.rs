@@ -125,6 +125,7 @@ pub enum Instruction {
     I32RelOp(IRelOp),
 
     I64Const(i64),
+    I64UnOp(IUnOp),
     I64BinOp(IBinOp),
     Numeric(OpCode), // TODO: fix
 
