@@ -20,6 +20,23 @@ pub struct MemArg {
     pub offset: u32,
 }
 
+#[derive(Clone)]
+pub struct OpCode {
+    code: u8,
+}
+
+impl std::fmt::Debug for OpCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:#x}", self.code)
+    }
+}
+
+impl From<u8> for OpCode {
+    fn from(code: u8) -> Self {
+        OpCode { code }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum Instruction {
     // control instructions
@@ -106,7 +123,7 @@ pub enum Instruction {
     I32Eqz,
     I32BinOp(IBinOp),
     I32RelOp(IRelOp),
-    Numeric(u8), // TODO: fix
+    Numeric(OpCode), // TODO: fix
 
     // vector instructions
     Vector, // TODO: fix
