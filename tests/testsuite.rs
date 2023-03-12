@@ -47,9 +47,9 @@ fn test_wast(filename: &str) {
                 store.instantiate(module.clone());
 
                 let WastExecute::Invoke(WastInvoke { name, args, .. }) = exec else {
-                                                        unimplemented!()
-                                                    };
-                println!("name: {}, args: {:?}", name, args);
+                    unimplemented!()
+                };
+                println!("AssertReturn: name: {}, args: {:?}", name, args);
 
                 let args = args.into_iter().map(wast_arg_to_value).collect::<Vec<_>>();
 
@@ -62,7 +62,29 @@ fn test_wast(filename: &str) {
 
                 assert_eq!(actual, expected);
             }
-            _ => {}
+            WastDirective::AssertTrap { exec, .. } => {
+                let mut store = Store::default();
+                store.instantiate(module.clone());
+
+                let WastExecute::Invoke(WastInvoke { name, args, .. }) = exec else {
+                    unimplemented!()
+                };
+                println!("AssertTrap: name: {}, args: {:?}", name, args);
+
+                let args = args.into_iter().map(wast_arg_to_value).collect::<Vec<_>>();
+
+                let res = store.invoke(name, args);
+                assert!(res.is_err());
+            }
+            WastDirective::AssertInvalid { .. } => {
+                // TODO: implement
+            }
+            WastDirective::AssertMalformed { .. } => {
+                // TODO: implement
+            }
+            _ => {
+                unimplemented!("{:?}", dir);
+            }
         }
     }
 }

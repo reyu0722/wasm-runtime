@@ -316,10 +316,33 @@ impl Store {
                         IBinOp::Add => v1.wrapping_add(v2),
                         IBinOp::Sub => v1.wrapping_sub(v2),
                         IBinOp::Mul => v1.wrapping_mul(v2),
-                        IBinOp::DivS => v1.wrapping_div(v2),
-                        IBinOp::DivU => (v1 as u32 / v2 as u32) as i32,
-                        IBinOp::RemS => v1.wrapping_rem(v2),
-                        IBinOp::RemU => (v1 as u32 % v2 as u32) as i32,
+                        IBinOp::DivS => {
+                            if v2 == 0 {
+                                bail!("division by zero")
+                            }
+                            if v1 == i32::MIN && v2 == -1 {
+                                bail!("overflow")
+                            }
+                            v1.wrapping_div(v2)
+                        }
+                        IBinOp::DivU => {
+                            if v2 == 0 {
+                                bail!("division by zero")
+                            }
+                            (v1 as u32 / v2 as u32) as i32
+                        }
+                        IBinOp::RemS => {
+                            if v2 == 0 {
+                                bail!("division by zero")
+                            }
+                            v1.wrapping_rem(v2)
+                        }
+                        IBinOp::RemU => {
+                            if v2 == 0 {
+                                bail!("division by zero")
+                            }
+                            (v1 as u32 % v2 as u32) as i32
+                        }
                         IBinOp::And => v1 & v2,
                         IBinOp::Or => v1 | v2,
                         IBinOp::Xor => v1 ^ v2,
