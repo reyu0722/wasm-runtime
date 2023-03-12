@@ -1,3 +1,4 @@
+use paste::paste;
 use std::fs::File;
 use std::io::{Cursor, Read};
 use wasm_runtime::{
@@ -11,46 +12,55 @@ use wast::{
     WastArg, WastDirective, WastExecute, WastInvoke, WastRet,
 };
 
-#[test]
-fn test_i32() {
-    let mut f = File::open("tests/testsuite/i32.wast").unwrap();
-    let mut b = vec![];
-    f.read_to_end(&mut b).unwrap();
-    let s = std::str::from_utf8(&b).unwrap();
+testsuite!(i32);
 
-    let buf = ParseBuffer::new(s).unwrap();
-    let wast = parse::<wast::Wast>(&buf).unwrap();
-    let mut module = Module::default();
+#[macro_export]
+macro_rules! testsuite {
+    ($($f: ident), *) => { $(
+        paste! {
+            #[test]
+            fn [< test_ $f >]() {
+                let mut f = File::open(format!("tests/testsuite/{}.wast", stringify!($f))).unwrap();
+                let mut b = vec![];
+                f.read_to_end(&mut b).unwrap();
+                let s = std::str::from_utf8(&b).unwrap();
 
-    for dir in wast.directives {
-        match dir {
-            WastDirective::Wat(mut wat) => {
-                let bin = wat.encode().unwrap();
-                module = decode(&mut Cursor::new(bin)).unwrap();
+                let buf = ParseBuffer::new(s).unwrap();
+                let wast = parse::<wast::Wast>(&buf).unwrap();
+                let mut module = Module::default();
+
+                for dir in wast.directives {
+                    match dir {
+                        WastDirective::Wat(mut wat) => {
+                            let bin = wat.encode().unwrap();
+                            module = decode(&mut Cursor::new(bin)).unwrap();
+                        }
+                        WastDirective::AssertReturn { exec, results, .. } => {
+                            let mut store = Store::default();
+                            store.instantiate(module.clone());
+
+                            let WastExecute::Invoke(WastInvoke { name, args, .. }) = exec else {
+                                                        unimplemented!()
+                                                    };
+                            println!("name: {}, args: {:?}", name, args);
+
+                            let args = args.into_iter().map(wast_arg_to_value).collect::<Vec<_>>();
+
+                            let expected = results
+                                .into_iter()
+                                .map(wast_ret_to_value)
+                                .collect::<Vec<_>>();
+
+                            let actual = store.invoke(name, args).unwrap();
+
+                            assert_eq!(actual, expected);
+                        }
+                        _ => {}
+                    }
+                }
             }
-            WastDirective::AssertReturn { exec, results, .. } => {
-                let mut store = Store::default();
-                store.instantiate(module.clone());
-
-                let WastExecute::Invoke(WastInvoke { name, args, .. }) = exec else {
-                    unimplemented!()
-                };
-                println!("name: {}, args: {:?}", name, args);
-
-                let args = args.into_iter().map(wast_arg_to_value).collect::<Vec<_>>();
-
-                let expected = results
-                    .into_iter()
-                    .map(wast_ret_to_value)
-                    .collect::<Vec<_>>();
-
-                let actual = store.invoke(name, args).unwrap();
-
-                assert_eq!(actual, expected);
-            }
-            _ => {}
         }
-    }
+    )*};
 }
 
 fn wast_arg_to_value(arg: WastArg) -> Value {
