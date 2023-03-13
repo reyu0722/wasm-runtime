@@ -12,7 +12,7 @@ use wast::{
     WastArg, WastDirective, WastExecute, WastInvoke, WastRet,
 };
 
-testsuite!(i32);
+testsuite!(i32, i64);
 
 #[macro_export]
 macro_rules! testsuite {

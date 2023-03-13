@@ -434,6 +434,29 @@ impl Store {
                     };
                     stack.push_i64(res as i64);
                 }
+                Instruction::I64Eqz => {
+                    let v = stack.pop_i64()?;
+                    stack.push_i32((v == 0) as i32);
+                }
+                Instruction::I64RelOp(op) => {
+                    let v2 = stack.pop_i64()?;
+                    let v1 = stack.pop_i64()?;
+
+                    let res = match op {
+                        IRelOp::Eq => v1 == v2,
+                        IRelOp::Ne => v1 != v2,
+                        IRelOp::LtS => v1 < v2,
+                        IRelOp::LtU => (v1 as u64) < v2 as u64,
+                        IRelOp::GtS => v1 > v2,
+                        IRelOp::GtU => v1 as u64 > v2 as u64,
+                        IRelOp::LeS => v1 <= v2,
+                        IRelOp::LeU => v1 as u64 <= v2 as u64,
+                        IRelOp::GeS => v1 >= v2,
+                        IRelOp::GeU => v1 as u64 >= v2 as u64,
+                    };
+
+                    stack.push_i32(res as i32);
+                }
                 Instruction::I64Extend8S => {
                     let v = stack.pop_i64()?;
                     stack.push_i64(v.to_le_bytes().as_ref().read_i8()? as i64);
