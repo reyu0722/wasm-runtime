@@ -260,6 +260,9 @@ pub trait ReadInstructionExt: BufRead {
 
                 Instruction::I64BinOp(op)
             }
+            0xc2 => Instruction::I64Extend8S,
+            0xc3 => Instruction::I64Extend16S,
+            0xc4 => Instruction::I64Extend32S,
 
             idx if (0x45..=0xc4).contains(&idx) => Instruction::Numeric(opcode.into()),
 

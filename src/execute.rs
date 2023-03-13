@@ -3,7 +3,7 @@ use crate::core::{
     Instruction, Module, NumType, TypeIdx, ValueType,
 };
 use anyhow::{bail, ensure, Result};
-use byteorder::{BigEndian, ReadBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt};
 use std::rc::Rc;
 
 mod stack;
@@ -289,11 +289,11 @@ impl Store {
                 }
                 Instruction::I32Extend8S => {
                     let v = stack.pop_i32()?;
-                    stack.push_i32((&v.to_be_bytes()[3..4]).read_i8()? as i32);
+                    stack.push_i32(v.to_le_bytes().as_ref().read_i8()? as i32);
                 }
                 Instruction::I32Extend16S => {
                     let v = stack.pop_i32()?;
-                    stack.push_i32((&v.to_be_bytes()[2..4]).read_i16::<BigEndian>()? as i32);
+                    stack.push_i32(v.to_le_bytes().as_ref().read_i16::<LittleEndian>()? as i32);
                 }
                 Instruction::I32UnOp(op) => {
                     let v = stack.pop_i32()?;
@@ -433,6 +433,18 @@ impl Store {
                         IUnOp::Popcnt => v.count_ones(),
                     };
                     stack.push_i64(res as i64);
+                }
+                Instruction::I64Extend8S => {
+                    let v = stack.pop_i64()?;
+                    stack.push_i64(v.to_le_bytes().as_ref().read_i8()? as i64);
+                }
+                Instruction::I64Extend16S => {
+                    let v = stack.pop_i64()?;
+                    stack.push_i64(v.to_le_bytes().as_ref().read_i16::<LittleEndian>()? as i64);
+                }
+                Instruction::I64Extend32S => {
+                    let v = stack.pop_i64()?;
+                    stack.push_i64(v.to_le_bytes().as_ref().read_i32::<LittleEndian>()? as i64);
                 }
 
                 _ => unimplemented!("{:?}", instr),

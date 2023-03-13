@@ -127,6 +127,9 @@ pub enum Instruction {
     I64Const(i64),
     I64UnOp(IUnOp),
     I64BinOp(IBinOp),
+    I64Extend8S,
+    I64Extend16S,
+    I64Extend32S,
     Numeric(OpCode), // TODO: fix
 
     // vector instructions
